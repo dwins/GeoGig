@@ -100,7 +100,7 @@ public class Main extends Application {
     static Router makeRepoRouter() {
         Router router = new Router();
         router.attach("/manifest", ManifestResource.class);
-        router.attach("/objects/{id}", new ObjectResource());
+        router.attach("/objects", ObjectResource.class);
         router.attach("/sendobject", SendObjectResource.class);
         router.attach("/exists", ObjectExistsResource.class);
         router.attach("/beginpush", BeginPush.class);

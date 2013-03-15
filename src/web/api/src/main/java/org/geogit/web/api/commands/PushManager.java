@@ -129,5 +129,4 @@ public class PushManager {
                     "Tried to push an object without first opening a connection.");
         }
     }
-
 }

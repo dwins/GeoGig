@@ -2,17 +2,29 @@ package org.geogit.remote;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PushbackInputStream;
+import java.io.Reader;
+import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 import javax.xml.stream.XMLInputFactory;
@@ -20,14 +32,20 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 
 import org.geogit.api.Bucket;
+import org.geogit.api.CommitBuilder;
+import org.geogit.api.GeoGIT;
 import org.geogit.api.Node;
 import org.geogit.api.NodeRef;
 import org.geogit.api.ObjectId;
 import org.geogit.api.Ref;
 import org.geogit.api.RevCommit;
+import org.geogit.api.RevFeature;
+import org.geogit.api.RevFeatureBuilder;
+import org.geogit.api.RevFeatureType;
 import org.geogit.api.RevObject;
 import org.geogit.api.RevObject.TYPE;
 import org.geogit.api.RevTree;
+import org.geogit.api.RevTreeBuilder;
 import org.geogit.api.SymRef;
 import org.geogit.api.plumbing.DiffTree;
 import org.geogit.api.plumbing.FindCommonAncestor;
@@ -38,9 +56,22 @@ import org.geogit.api.porcelain.PushException.StatusCode;
 import org.geogit.repository.Repository;
 
 import com.google.common.base.Optional;
+import org.geogit.repository.Repository;
+import org.geogit.storage.ObjectReader;
+import org.geogit.storage.datastream.CommitReader;
+import org.geogit.storage.datastream.DataStreamSerializationFactory;
+
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Closeables;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 
 /**
  * An implementation of a remote repository that exists on a remote machine and made public via an
@@ -125,11 +156,8 @@ public class HttpRemoteRepo implements IRemoteRepo {
             } finally {
                 is.close();
             }
-
         } catch (Exception e) {
-
             Throwables.propagate(e);
-
         } finally {
             consumeErrStreamAndCloseConnection(connection);
         }
@@ -152,12 +180,14 @@ public class HttpRemoteRepo implements IRemoteRepo {
 
             connection = (HttpURLConnection) new URL(expanded).openConnection();
             connection.setRequestMethod("GET");
+            connection.setRequestProperty("Accept", "application/json");
 
             connection.setUseCaches(false);
             connection.setDoOutput(true);
 
             // Get Response
             InputStream is = connection.getInputStream();
+
             BufferedReader rd = new BufferedReader(new InputStreamReader(is));
             String line;
             try {
@@ -170,7 +200,6 @@ public class HttpRemoteRepo implements IRemoteRepo {
             } finally {
                 rd.close();
             }
-
         } catch (Exception e) {
             throw Throwables.propagate(e);
         } finally {
@@ -240,24 +269,221 @@ public class HttpRemoteRepo implements IRemoteRepo {
      */
     @Override
     public void fetchNewData(Repository localRepository, Ref ref) {
-        fetchedIds = new LinkedList<ObjectId>();
-        commitQueue.clear();
-        commitQueue.add(ref.getObjectId());
+        final List<ObjectId> want = new ArrayList<ObjectId>();
+        want.add(ref.getObjectId());
+        final Set<ObjectId> have = commonRoots(want, localRepository);
+        while (! want.isEmpty()) {
+            // fetchMoreData retrieves objects from the remote repo and
+            // updates the want/have lists accordingly - retrieved commits
+            // are removed from the want list and added to the have list.  
+            // Additionally, parents of retrieved commits are removed from
+            // the have list (since it represents the latest common commits.)
+            fetchMoreData(localRepository, want, have);
+        }
+        
+    }
+    
+    /**
+     * Retrieve objects from the remote repository, and update have/want lists accordingly.
+     * Specifically, any retrieved commits are removed from the want list and added to the have
+     * list, and any parents of those commits are removed from the have list (it only represents
+     * the most recent common commits.)  Retrieved objects are added to the local repository, and
+     * the want/have lists are updated in-place.
+     * 
+     * @param localRepository the local geogit Repository
+     * @param want a list of ObjectIds that need to be fetched
+     * @param have a list of ObjectIds that are in common with the remote repository
+     */
+    private void fetchMoreData(
+            final Repository localRepository,
+            final List<ObjectId> want,
+            final Set<ObjectId> have)
+    {
+        final JsonObject message = createFetchMessage(want, have);
+        System.out.println("Fetch: " + message);
+        final URL resourceURL;
         try {
-            while (!commitQueue.isEmpty()) {
-                walkCommit(commitQueue.remove(), localRepository, false);
+            resourceURL = new URL(repositoryURL.toString() + "/repo/objects");
+        } catch (MalformedURLException e) {
+            throw Throwables.propagate(e);
+        }
+        
+        final Gson gson = new Gson();
+        final HttpURLConnection connection;
+        final OutputStream out;
+        final Writer writer;
+        try {
+            connection = (HttpURLConnection) resourceURL.openConnection();
+            connection.setDoOutput(true);
+            connection.setDoInput(true);
+            out = connection.getOutputStream();
+            writer = new OutputStreamWriter(out);
+            gson.toJson(message, writer);
+            writer.flush();
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        }
+
+        final InputStream in;
+        final PushbackInputStream pushback;
+        try {
+            in = connection.getInputStream();
+            pushback = new PushbackInputStream(in);
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        }
+        
+        DataStreamSerializationFactory factory = new DataStreamSerializationFactory();
+        ObjectReader<RevObject> objectReader = factory.createObjectReader();
+        while (true) {
+            final ObjectId id;
+            try {
+                byte[] bytes = readNBytes(pushback, 20);
+                id = new ObjectId(bytes);
+            } catch (EOFException e) {
+                break;
+            } catch (IndexOutOfBoundsException e) {
+                break;
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
             }
-        } catch (Exception e) {
-            for (ObjectId oid : fetchedIds) {
-                localRepository.getObjectDatabase().delete(oid);
+            
+            RevObject object = objectReader.read(id, pushback);
+            localRepository.getObjectDatabase().put(object);
+            if (object instanceof RevCommit) {
+                RevCommit commit = (RevCommit) object;
+                want.remove(id);
+                have.removeAll(commit.getParentIds());
+                have.add(id);
             }
-            Throwables.propagate(e);
-        } finally {
-            fetchedIds.clear();
-            fetchedIds = null;
         }
     }
-
+    
+    private byte[] readNBytes(InputStream in, int n) throws IOException {
+        byte[] bytes = new byte[n];
+        int offset = 0;
+        int len = 0;
+        while ((len = in.read(bytes, offset, n - offset)) != (n - offset)) {
+            offset += len;
+        }
+        return bytes;
+    }
+    
+    private JsonObject createFetchMessage(List<ObjectId> want, Set<ObjectId> have) {
+        JsonObject message = new JsonObject();
+        JsonArray wantArray = new JsonArray();
+        for (ObjectId id : want) {
+            wantArray.add(new JsonPrimitive(id.toString()));
+        }
+        JsonArray haveArray = new JsonArray();
+        for (ObjectId id : have) {
+            haveArray.add(new JsonPrimitive(id.toString()));
+        }
+        message.add("want", wantArray);
+        message.add("have", haveArray);
+        return message;
+    }
+    
+    public Set<ObjectId> commonRoots(List<ObjectId> want, Repository localRepository) {
+        Set<ObjectId> roots = heads(localRepository);
+        List<ObjectId> requirements = new ArrayList<ObjectId>(want);
+        while (!requirements.isEmpty()) {
+            Map<ObjectId, List<ObjectId>> remoteHistory = fetchHistoryFrom(requirements, roots);
+            List<ObjectId> nextRequirements = new ArrayList<ObjectId>();
+            List<ObjectId> toCheck = new ArrayList<ObjectId>();
+            for (ObjectId req : requirements) {
+                if (! remoteHistory.containsKey(req)) {
+                    throw new IllegalStateException("Want list contains an element that is not on the remote server [" + req + "]; of " + remoteHistory.keySet());
+                } else {
+                    toCheck.add(req);
+                }
+            }
+            while (!toCheck.isEmpty()) {
+                ObjectId possibleRoot = toCheck.remove(0);
+                if (localRepository.commitExists(possibleRoot)) {
+                    roots.add(possibleRoot);
+                } else {
+                    if (remoteHistory.containsKey(possibleRoot)) {
+                        toCheck.addAll(remoteHistory.get(possibleRoot));
+                    } else {
+                        nextRequirements.add(possibleRoot);
+                    }
+                }
+            }
+            requirements = nextRequirements;
+        }
+        return roots;
+    }
+    
+    private Set<ObjectId> heads(Repository localRepository) {
+        Set<ObjectId> results = new HashSet<ObjectId>();
+        Map<String, String> allRefs = localRepository.getRefDatabase().getAll();
+        System.out.println("Refs: " + allRefs);
+        for (Map.Entry<String, String> entry : allRefs.entrySet()) {
+            final String id  = entry.getValue();
+            if (id == null) continue;
+            if ("0000000000000000000000000000000000000000".equals(id)) continue;
+            if (id.startsWith("ref:")) continue;
+            results.add(ObjectId.valueOf(entry.getValue()));
+        }
+        return results;
+    }
+    
+    private Map<ObjectId, List<ObjectId>> fetchHistoryFrom(List<ObjectId> requirements, Set<ObjectId> have) {
+        JsonObject message = new JsonObject();
+        JsonArray wantArray = new JsonArray();
+        for (ObjectId req : requirements) {
+            wantArray.add(new JsonPrimitive(req.toString()));
+        }
+        JsonArray haveArray = new JsonArray();
+        for (ObjectId h : have) {
+            haveArray.add(new JsonPrimitive(h.toString()));
+        }
+        message.add("want", wantArray);
+        message.add("have", haveArray);
+        System.out.println("Exists: " + message.toString());
+        
+        try {
+            final URL resourceURL = new URL(repositoryURL.toString() + "/repo/exists");
+            
+            final HttpURLConnection conn = (HttpURLConnection) resourceURL.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setUseCaches(false);
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
+            
+            final OutputStream out = conn.getOutputStream();
+            final Writer writer = new OutputStreamWriter(out);
+            final Gson gson = new Gson();
+            gson.toJson(message, writer);
+            writer.flush();
+            
+            final InputStream in = conn.getInputStream();
+            final Reader reader = new InputStreamReader(in);
+            final JsonParser parser = new JsonParser();
+            JsonElement responseJson = parser.parse(reader);
+            JsonObject response = responseJson.getAsJsonObject();
+            JsonArray responseHaveArray = response.get("have").getAsJsonArray();
+            Map<ObjectId, List<ObjectId>> results = new HashMap<ObjectId, List<ObjectId>>();
+            for (JsonElement e : responseHaveArray) {
+                JsonObject entry = e.getAsJsonObject();
+                ObjectId id = ObjectId.valueOf(entry.get("id").getAsJsonPrimitive().getAsString());
+                List<ObjectId> parents = new ArrayList<ObjectId>();
+                for (JsonElement p : entry.get("parents").getAsJsonArray()) {
+                    parents.add(ObjectId.valueOf(p.getAsJsonPrimitive().getAsString()));
+                }
+                results.put(id, parents);
+            }
+            return results;
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
+    }
+    
+    private <T> T todo() {
+        throw new RuntimeException("An implementation is missing");
+    }
+    
     /**
      * Push all new objects from the specified {@link Ref} to the remote.
      * 
