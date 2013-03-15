@@ -270,7 +270,9 @@ public class HttpRemoteRepo implements IRemoteRepo {
     @Override
     public void fetchNewData(Repository localRepository, Ref ref) {
         final List<ObjectId> want = new ArrayList<ObjectId>();
-        want.add(ref.getObjectId());
+        if (!localRepository.blobExists(ref.getObjectId())) { 
+            want.add(ref.getObjectId());
+        }
         final Set<ObjectId> have = commonRoots(want, localRepository);
         while (! want.isEmpty()) {
             // fetchMoreData retrieves objects from the remote repo and
