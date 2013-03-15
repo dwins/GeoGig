@@ -107,11 +107,6 @@ public class ObjectResource extends ServerResource {
                     throw new NoSuchElementException("Wanted id: " + i + " is not known");
                 }
             }
-            for (ObjectId i : have) {
-                if (! repository.blobExists(i)) {
-                    throw new NoSuchElementException("Stop-list id: " + i + " is not known");
-                }
-            }
             List<ObjectId> toSend = new ArrayList<ObjectId>(CAP);
             List<ObjectId> front = new ArrayList<ObjectId>(want);
             Set<ObjectId> visited = new HashSet<ObjectId>(have);
@@ -213,7 +208,8 @@ public class ObjectResource extends ServerResource {
             while (!toInspect.isEmpty()) {
                 ObjectId here = toInspect.remove(0);
                 if (sent.contains(here)) continue;
-                RevObject revObject = repo.getObjectDatabase().get(here);
+                RevObject revObject = repo.getObjectDatabase().getIfPresent(here);
+                if (revObject == null) continue;
                 if (revObject instanceof RevCommit) {
                     RevCommit commit = (RevCommit) revObject;
 //                        toInspect.addAll(commit.getParentIds()); // skipping this - we don't want the parents in this use case
