@@ -465,7 +465,7 @@ public class HttpRemoteRepo implements IRemoteRepo {
             final JsonParser parser = new JsonParser();
             JsonElement responseJson = parser.parse(reader);
             JsonObject response = responseJson.getAsJsonObject();
-            JsonArray responseHaveArray = response.get("have").getAsJsonArray();
+            JsonArray responseHaveArray = response.get("history").getAsJsonArray();
             Map<ObjectId, List<ObjectId>> results = new HashMap<ObjectId, List<ObjectId>>();
             for (JsonElement e : responseHaveArray) {
                 JsonObject entry = e.getAsJsonObject();

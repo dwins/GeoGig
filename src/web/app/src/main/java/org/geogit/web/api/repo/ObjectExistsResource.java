@@ -75,11 +75,11 @@ public class ObjectExistsResource extends ServerResource {
             Gson gson = new Gson();
             GeoGIT ggit = (GeoGIT) getApplication().getContext().getAttributes().get("geogit");
             List<ObjectId> queue = new ArrayList<ObjectId>(want);
-            Set<ObjectId> sent = new HashSet<ObjectId>();
+            Set<ObjectId> sent = new HashSet<ObjectId>(have);
             int sendLimit = 1000;
             
             jsonWriter.beginObject();
-            jsonWriter.name("have");
+            jsonWriter.name("history");
             jsonWriter.beginArray();
             
             while (queue.size() > 0 && sendLimit > 0) {
@@ -92,10 +92,10 @@ public class ObjectExistsResource extends ServerResource {
                     }
                 }
                 JsonObject entry = new JsonObject();
-                entry.addProperty("id", formatId(commitId));
+                entry.addProperty("id", commitId.toString());
                 JsonArray parentList = new JsonArray();
                 for (ObjectId p : parentIds) {
-                    parentList.add(new JsonPrimitive(formatId(p)));
+                    parentList.add(new JsonPrimitive(p.toString()));
                 }
                 entry.add("parents", parentList);
                 gson.toJson(entry, jsonWriter);
@@ -104,15 +104,15 @@ public class ObjectExistsResource extends ServerResource {
                 sendLimit--;
             }
             jsonWriter.endArray();
-            jsonWriter.endObject();
-        }
-        
-        private String formatId(ObjectId id) {
-            StringBuilder builder = new StringBuilder();
-            for (int n = 0; n < ObjectId.HASH_FUNCTION.bits() / 8; n++) {
-                builder.append(String.format("%02x", id.byteN(n)));
+            jsonWriter.name("match");
+            jsonWriter.beginArray();
+            for (ObjectId h : have) {
+                if (ggit.getRepository().blobExists(h)) {
+                    jsonWriter.value(h.toString());
+                }
             }
-            return builder.toString();
+            jsonWriter.endArray();
+            jsonWriter.endObject();
         }
     }
 }
