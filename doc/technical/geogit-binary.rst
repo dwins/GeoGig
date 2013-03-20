@@ -157,6 +157,22 @@ FeatureType
     aspatialType := name typeTag (aspatial types are distinguished from spatial ones by the value of the type tag)
     typeTag := <byte> (as used in features)
     spatialType := name typeTag crsTextInterpretation crsText
-    crsTextInterpretation := <byte> (0: crsText is WKT CRS definition, 1: crsText is an SRID like EPSG:4326, other values unused)
+    crsTextInterpretation := <byte> (0: crsText is WKT CRS definition,
+                                     1: crsText references a well-known CRS by identifier.  If it uses URI notation ("urn:...") then the axes should be forced to X=Easting, Y=Northing order.)
     crsText := <utf8> (as determined by crsTextInterpretation)
 
+Tag
+---
+
+.. code-block::
+
+   tag := tagHeader objectId tagName message tagger
+   tagHeader := "tag" NUL
+   objectId := <byte>[20]
+   tagName := <utf8>
+   message := <utf8>
+   tagger := name email timestamp tzOffset
+   name := <utf8>
+   email := <utf8>
+   timestamp := <int64>
+   tzOffset := <int32>
