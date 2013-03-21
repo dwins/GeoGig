@@ -563,7 +563,7 @@ public class HttpRemoteRepo implements IRemoteRepo {
                     // loss of history.
                     throw new PushException(StatusCode.REMOTE_HAS_CHANGES);
                 }
-            } else {
+            } else if (!remoteRef.get().getObjectId().equals(ObjectId.NULL)) {
                 // The remote has data that I do not, a push will cause this data to be lost.
                 throw new PushException(StatusCode.REMOTE_HAS_CHANGES);
             }
