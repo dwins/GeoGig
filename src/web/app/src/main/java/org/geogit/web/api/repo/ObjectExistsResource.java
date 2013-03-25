@@ -104,10 +104,10 @@ public class ObjectExistsResource extends ServerResource {
                 sendLimit--;
             }
             jsonWriter.endArray();
-            jsonWriter.name("match");
+            jsonWriter.name("missing");
             jsonWriter.beginArray();
             for (ObjectId h : have) {
-                if (ggit.getRepository().blobExists(h)) {
+                if (!ggit.getRepository().blobExists(h)) {
                     jsonWriter.value(h.toString());
                 }
             }

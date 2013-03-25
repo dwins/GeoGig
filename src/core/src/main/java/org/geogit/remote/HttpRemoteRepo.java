@@ -327,50 +327,28 @@ public class HttpRemoteRepo implements IRemoteRepo {
         }
 
         final InputStream in;
-        final PushbackInputStream pushback;
         try {
             in = connection.getInputStream();
-            pushback = new PushbackInputStream(in);
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
         
-        DataStreamSerializationFactory factory = new DataStreamSerializationFactory();
-        ObjectReader<RevObject> objectReader = factory.createObjectReader();
-        while (true) {
-            final ObjectId id;
-            try {
-                byte[] bytes = readNBytes(pushback, 20);
-                id = new ObjectId(bytes);
-            } catch (EOFException e) {
-                break;
-            } catch (IndexOutOfBoundsException e) {
-                break;
-            } catch (IOException e) {
-                throw Throwables.propagate(e);
+        BinaryPackedObjects unpacker = new BinaryPackedObjects(localRepository);
+        BinaryPackedObjects.Callback<Void> callback = new BinaryPackedObjects.Callback<Void>() {
+            @Override
+            public Void callback(RevObject object, Void state) {
+                if (object instanceof RevCommit) {
+                    RevCommit commit = (RevCommit) object;
+                    want.remove(commit.getId());
+                    have.removeAll(commit.getParentIds());
+                    have.add(commit.getId());
+                }
+                return null;
             }
-            
-            RevObject object = objectReader.read(id, pushback);
-            localRepository.getObjectDatabase().put(object);
-            if (object instanceof RevCommit) {
-                RevCommit commit = (RevCommit) object;
-                want.remove(id);
-                have.removeAll(commit.getParentIds());
-                have.add(id);
-            }
-        }
+        };
+        unpacker.ingest(in, callback);
     }
-    
-    private byte[] readNBytes(InputStream in, int n) throws IOException {
-        byte[] bytes = new byte[n];
-        int offset = 0;
-        int len = 0;
-        while ((len = in.read(bytes, offset, n - offset)) != (n - offset)) {
-            offset += len;
-        }
-        return bytes;
-    }
-    
+        
     private JsonObject createFetchMessage(List<ObjectId> want, Set<ObjectId> have) {
         JsonObject message = new JsonObject();
         JsonArray wantArray = new JsonArray();
@@ -386,16 +364,30 @@ public class HttpRemoteRepo implements IRemoteRepo {
         return message;
     }
     
-    public Set<ObjectId> commonRoots(List<ObjectId> want, Repository localRepository) {
+    /**
+     * Identify a merge-base between local commits and remote ones. All commits with named refs in
+     * the local repository and their ancestors are considered candidates for merge-base commits,
+     * and a list of candidates from the remote service is also passed in.
+     * 
+     * @param want a list of remote objects whose history should be considered when determining the merge base
+     * @param localRepository a Repository allowing access to local commit history
+     * @return a Set containing the ObjectIds representing the merge base.
+     */
+    private Set<ObjectId> commonRoots(List<ObjectId> want, Repository localRepository) {
         Set<ObjectId> roots = heads(localRepository);
         List<ObjectId> requirements = new ArrayList<ObjectId>(want);
-        while (!requirements.isEmpty()) {
+        // TODO:
+        // We use a do-loop instead of a while-loop here in order to ensure that the remote
+        // can give us feedback on which of our heads are present remotely. In some scenarios (for
+        // example, where all of the remote heads are known locally) we can determine this just from
+        // the remote manifest and save ourselves a request.
+        do {
             Map<ObjectId, List<ObjectId>> remoteHistory = fetchHistoryFrom(requirements, roots);
             List<ObjectId> nextRequirements = new ArrayList<ObjectId>();
             List<ObjectId> toCheck = new ArrayList<ObjectId>();
             for (ObjectId req : requirements) {
                 if (! remoteHistory.containsKey(req)) {
-                    throw new IllegalStateException("Want list contains an element that is not on the remote server [" + req + "]; of " + remoteHistory.keySet());
+                    throw new IllegalStateException("Want list contains an element that is not on the remote server [" + req + "];");
                 } else {
                     toCheck.add(req);
                 }
@@ -413,7 +405,8 @@ public class HttpRemoteRepo implements IRemoteRepo {
                 }
             }
             requirements = nextRequirements;
-        }
+        } while (!requirements.isEmpty());
+
         return roots;
     }
     
@@ -476,6 +469,13 @@ public class HttpRemoteRepo implements IRemoteRepo {
                 }
                 results.put(id, parents);
             }
+            JsonArray responseMatchArray = response.get("missing").getAsJsonArray();
+            System.out.println("Missing: " + responseMatchArray);
+            for (JsonElement e : responseMatchArray) {
+                JsonPrimitive p = e.getAsJsonPrimitive();
+                have.remove(ObjectId.valueOf(p.getAsString()));
+                System.out.println("Removed: " + p + " from " + have);
+            }
             return results;
         } catch (Exception e) {
             throw Throwables.propagate(e);
@@ -508,36 +508,92 @@ public class HttpRemoteRepo implements IRemoteRepo {
     public void pushNewData(Repository localRepository, Ref ref, String refspec)
             throws PushException {
         Optional<Ref> remoteRef = checkPush(localRepository, ref, refspec);
-        beginPush();
-        commitQueue.clear();
-        commitQueue.add(ref.getObjectId());
-        while (!commitQueue.isEmpty()) {
-            ObjectId commitId = commitQueue.remove();
-            if (walkCommit(commitId, localRepository, true)) {
-                RevCommit oldCommit = localRepository.getCommit(commitId);
-                ObjectId parentId = oldCommit.getParentIds().get(0);
-                RevCommit parentCommit = localRepository.getCommit(parentId);
-                Iterator<DiffEntry> diff = localRepository.command(DiffTree.class)
-                        .setOldTree(parentCommit.getId()).setNewTree(oldCommit.getId()).call();
-                // Send the features that changed.
-                while (diff.hasNext()) {
-                    DiffEntry entry = diff.next();
-                    if (entry.getNewObject() != null) {
-                        NodeRef nodeRef = entry.getNewObject();
-                        moveObject(nodeRef.getNode().getObjectId(), localRepository, true);
-                        ObjectId metadataId = nodeRef.getMetadataId();
-                        if (!metadataId.isNull()) {
-                            moveObject(metadataId, localRepository, true);
+        ImmutableSet<ObjectId> heads = remoteHeads();
+//        System.out.println("Heads: " + heads);
+        Set<ObjectId> roots = commonRoots(ImmutableList.copyOf(heads), localRepository);
+        List<ObjectId> toSend = new ArrayList<ObjectId>();
+        toSend.add(ref.getObjectId());
+        sendPackedObjects(localRepository, toSend, new HashSet<ObjectId>(roots));
+//        BinaryPackedObjects packer = new BinaryPackedObjects(localRepository);
+//        packer.write(null, ImmutableList.of(ref.getObjectId()), ImmutableList.copyOf(roots));
+//        System.out.println("Roots: " + roots);
+//        beginPush();
+//        commitQueue.clear();
+//        commitQueue.add(ref.getObjectId());
+//        while (!commitQueue.isEmpty()) {
+//            ObjectId commitId = commitQueue.remove();
+//            if (walkCommit(commitId, localRepository, true)) {
+//                RevCommit oldCommit = localRepository.getCommit(commitId);
+//                ObjectId parentId = oldCommit.getParentIds().get(0);
+//                RevCommit parentCommit = localRepository.getCommit(parentId);
+//                Iterator<DiffEntry> diff = localRepository.command(DiffTree.class)
+//                        .setOldTree(parentCommit.getId()).setNewTree(oldCommit.getId()).call();
+//                // Send the features that changed.
+//                while (diff.hasNext()) {
+//                    DiffEntry entry = diff.next();
+//                    if (entry.getNewObject() != null) {
+//                        NodeRef nodeRef = entry.getNewObject();
+//                        moveObject(nodeRef.getNode().getObjectId(), localRepository, true);
+//                        ObjectId metadataId = nodeRef.getMetadataId();
+//                        if (!metadataId.isNull()) {
+//                            moveObject(metadataId, localRepository, true);
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//        ObjectId originalRemoteRefValue = ObjectId.NULL;
+//        if (remoteRef.isPresent()) {
+//            originalRemoteRefValue = remoteRef.get().getObjectId();
+//        }
+//        endPush(refspec, ref.getObjectId().toString(), originalRemoteRefValue.toString());
+    }
+    
+    private void sendPackedObjects(Repository localRepository, 
+            final List<ObjectId> toSend, 
+            final Set<ObjectId> roots) {
+        Set<ObjectId> sent = new HashSet<ObjectId>();
+        while (!toSend.isEmpty()) {
+            try {
+                String expanded = repositoryURL.toString() + "/repo/sendobject";
+                HttpURLConnection connection = (HttpURLConnection) new URL(expanded).openConnection();
+                connection.setDoOutput(true);
+                
+                OutputStream out = connection.getOutputStream();
+                BinaryPackedObjects.Callback<Void> callback = new BinaryPackedObjects.Callback<Void>() {
+                    @Override
+                    public Void callback(RevObject object, Void state) {
+                        if (object instanceof RevCommit) {
+                            RevCommit commit = (RevCommit) object;
+                            toSend.remove(commit.getId());
+                            roots.removeAll(commit.getParentIds());
+                            roots.add(commit.getId());
                         }
+                        return null;
                     }
-                }
+                };
+                BinaryPackedObjects packer = new BinaryPackedObjects(localRepository);
+                packer.write(out, toSend, ImmutableList.copyOf(roots), sent, callback);
+                out.flush();
+                out.close();
+                
+                InputStream in = connection.getInputStream();
+                consumeAndCloseStream(in);
+            } catch (IOException e) {
+                Throwables.propagate(e);
             }
         }
-        ObjectId originalRemoteRefValue = ObjectId.NULL;
-        if (remoteRef.isPresent()) {
-            originalRemoteRefValue = remoteRef.get().getObjectId();
+    }
+    
+    private ImmutableSet<ObjectId> remoteHeads() {
+        ImmutableSet<Ref> remoteRefs = this.listRefs(true, true);
+        ImmutableSet.Builder<ObjectId> results = ImmutableSet.builder();
+        for (Ref r : remoteRefs) {
+            if (!r.getObjectId().equals(ObjectId.NULL)) {
+                results.add(r.getObjectId());
+            }
         }
-        endPush(refspec, ref.getObjectId().toString(), originalRemoteRefValue.toString());
+        return results.build();
     }
 
     private Optional<Ref> checkPush(Repository localRepository, Ref ref, String refspec)
