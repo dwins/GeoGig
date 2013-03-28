@@ -7,6 +7,7 @@ package org.geogit.cli;
 import org.geogit.cli.plumbing.CatObject;
 import org.geogit.cli.plumbing.LsTree;
 import org.geogit.cli.plumbing.RevParse;
+import org.geogit.cli.plumbing.WalkGraph;
 import org.geogit.cli.porcelain.Add;
 import org.geogit.cli.porcelain.Apply;
 import org.geogit.cli.porcelain.Branch;
@@ -102,6 +103,7 @@ public class BuiltinCommandsModule extends AbstractModule implements CLIModule {
         bind(Pull.class);
         bind(LsTree.class);
         bind(Tag.class);
+        bind(WalkGraph.class);
     }
 
 }
