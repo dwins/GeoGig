@@ -30,9 +30,6 @@ import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
 import org.restlet.resource.ServerResource;
 
-/**
- *
- */
 public class CommandResource extends ServerResource {
 
     @Post("json|xml")

@@ -4,21 +4,19 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
-import org.geogit.api.Bucket;
-import org.geogit.api.Node;
 import org.geogit.api.ObjectId;
 import org.geogit.api.RevCommit;
 import org.geogit.api.RevFeature;
 import org.geogit.api.RevFeatureType;
 import org.geogit.api.RevObject;
 import org.geogit.api.RevTree;
+import org.geogit.repository.PostOrderIterator;
 import org.geogit.repository.Repository;
 import org.geogit.storage.ObjectReader;
 import org.geogit.storage.ObjectSerializingFactory;
@@ -34,7 +32,7 @@ public final class BinaryPackedObjects {
     private final ObjectWriter<RevFeature> featureWriter;
     private final ObjectReader<RevObject> objectReader;
     
-    private final int CAP = 10000;
+    private final int CAP = 100;
     private final Repository repository;
     
     public BinaryPackedObjects(Repository repository) {
@@ -58,140 +56,29 @@ public final class BinaryPackedObjects {
                 throw new NoSuchElementException("Wanted id: " + i + " is not known");
             }
         }
-        List<ObjectId> toSend = new ArrayList<ObjectId>(CAP);
-        List<ObjectId> front = new ArrayList<ObjectId>(want);
-        Set<ObjectId> visited = new HashSet<ObjectId>(have);
-        while (! front.isEmpty()) {
-            final ObjectId curr = front.remove(0);
-            if (!visited.contains(curr)) {
-                visited.add(curr);
-                insertWithCap(toSend, curr);
-                final RevCommit commit = repository.getCommit(curr);
-                for (ObjectId parent : commit.getParentIds()) {
-                    front.add(parent);
-                }
+
+        int commitsSent = 0;
+        System.out.println("Want: " + want);
+        System.out.println("Have: " + have);
+        Iterator<RevObject> objects = PostOrderIterator.range(want, have, repository);
+        while (objects.hasNext() && commitsSent < CAP) {
+            RevObject object = objects.next();
+
+            out.write(object.getId().getRawValue());
+            if (object instanceof RevCommit) {
+                commitWriter.write((RevCommit)object, out);
+                commitsSent ++;
+            } else if (object instanceof RevTree) {
+                treeWriter.write((RevTree)object, out);
+            } else if (object instanceof RevFeature) {
+                featureWriter.write((RevFeature) object, out);
+            } else if (object instanceof RevFeatureType) {
+                featureTypeWriter.write((RevFeatureType) object, out);
             }
-        }
-        Collections.reverse(toSend);
-        for (ObjectId id : have) {
-            previsit(id, sent);
-        }
-        for (ObjectId id : toSend) {
-            state = send(id, sent, callback, state, out);
+            state = callback.callback(object, state);
         }
         
-        return null;
-    }
-    
-    private void insertWithCap(List<ObjectId> accum, ObjectId newId) {
-        accum.add(newId);
-        while (accum.size() > CAP) {
-            accum.remove(0);
-        }
-    }
-
-    private <T> T send(ObjectId id, Set<ObjectId> sent, Callback<T> callback, T state, OutputStream out) throws IOException {
-        List<ObjectId> toInspect = new ArrayList<ObjectId>();
-        List<ObjectId> toVisit = new ArrayList<ObjectId>();
-        toInspect.add(id);
-        while (true) {
-            if (!toVisit.isEmpty()) {
-                ObjectId here = toVisit.remove(0);
-                if (sent.add(here)) { // add returns TRUE if the added element is new
-                    out.write(here.getRawValue());
-                    RevObject revObj = repository.getObjectDatabase().get(here);
-                    if (revObj instanceof RevCommit) {
-                        commitWriter.write((RevCommit)revObj, out);
-                    } else if (revObj instanceof RevTree) {
-                        treeWriter.write((RevTree)revObj, out);
-                    } else if (revObj instanceof RevFeature) {
-                        featureWriter.write((RevFeature) revObj, out);
-                    } else if (revObj instanceof RevFeatureType) {
-                        featureTypeWriter.write((RevFeatureType) revObj, out);
-                    }
-                    state = callback.callback(revObj, state);
-                }
-            } else if (!toInspect.isEmpty()) {
-                ObjectId here = toInspect.remove(0);
-                if (sent.contains(here)) continue;
-                RevObject revObject = repository.getObjectDatabase().get(here);
-                if (revObject instanceof RevCommit) {
-                    RevCommit commit = (RevCommit) revObject;
-                    toInspect.add(commit.getTreeId());
-                    toVisit.add(here);
-                } else if (revObject instanceof RevTree) {
-                    RevTree tree = (RevTree) revObject;
-                    if (tree.features().isPresent()) {
-                        for (Node n : tree.features().get()) {
-                            if (n.getMetadataId().isPresent()) {
-                                toInspect.add(n.getMetadataId().get());
-                            }
-                            toInspect.add(n.getObjectId());
-                        }
-                    }
-                    if (tree.trees().isPresent()) {
-                        for (Node n : tree.trees().get()) {
-                            if (n.getMetadataId().isPresent()) {
-                                toInspect.add(n.getMetadataId().get());
-                            }
-                            toInspect.add(n.getObjectId());
-                        }
-                    }
-                    if (tree.buckets().isPresent()) {
-                        for (Bucket b : tree.buckets().get().values()) {
-                            toInspect.add(b.id());
-                        }
-                    }
-                    toVisit.add(here);
-                } else if (revObject instanceof RevFeatureType) {
-                    toVisit.add(here);
-                } else if (revObject instanceof RevFeature) {
-                    toVisit.add(here);
-                }
-            } else {
-                break;
-            }
-        }
         return state;
-    }
-
-    private void previsit(ObjectId id, Set<ObjectId> sent) throws IOException {
-        List<ObjectId> toInspect = new ArrayList<ObjectId>();
-        toInspect.add(id);
-        while (!toInspect.isEmpty()) {
-            ObjectId here = toInspect.remove(0);
-            if (sent.contains(here)) continue;
-            RevObject revObject = repository.getObjectDatabase().getIfPresent(here);
-            if (revObject == null) continue;
-            if (revObject instanceof RevCommit) {
-                RevCommit commit = (RevCommit) revObject;
-                toInspect.add(commit.getTreeId());
-            } else if (revObject instanceof RevTree) {
-                RevTree tree = (RevTree) revObject;
-                if (tree.features().isPresent()) {
-                    for (Node n : tree.features().get()) {
-                        if (n.getMetadataId().isPresent()) {
-                            toInspect.add(n.getMetadataId().get());
-                        }
-                        toInspect.add(n.getObjectId());
-                    }
-                }
-                if (tree.trees().isPresent()) {
-                    for (Node n : tree.trees().get()) {
-                        if (n.getMetadataId().isPresent()) {
-                            toInspect.add(n.getMetadataId().get());
-                        }
-                        toInspect.add(n.getObjectId());
-                    }
-                }
-                if (tree.buckets().isPresent()) {
-                    for (Bucket b : tree.buckets().get().values()) {
-                        toInspect.add(b.id());
-                    }
-                }
-            }
-            sent.add(here);
-        }
     }
     
     public void ingest(final InputStream in) {
