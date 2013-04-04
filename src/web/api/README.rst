@@ -104,8 +104,8 @@ For brevity and clarity, we enumerate some classes of parameter here, and refere
   A refspec is an identifier for a GeoGit history object (commit, tree, feature, etc.)
   Refspecs may come in different forms:
 
-  * An object id.
-  * Any unique prefix of such a checksum.
+  * An object id as discussed above.
+  * Any unique prefix of an objectid.
   * A name from GeoGit's name database (these are used for branches and other commits of special importance.)
 
 **Path**
@@ -115,7 +115,7 @@ For brevity and clarity, we enumerate some classes of parameter here, and refere
 
 **Callback**
   For JSON output, GeoGit supports JSONP, a technique for making HTTP GET requests without violating the Same Origin Policy enforced by web browsers.
-  JSONP is activated by providing a 'callback' parameter containing the name of JavaScript function to be invoked with the JSON returned by the GeoGit web API.
+  JSONP is activated by providing a ``callback`` parameter containing the name of JavaScript function to be invoked with the JSON returned by the GeoGit web API.
   Since callbacks are not applicable to XML output, when XML output is selected the callback parameter will be ignored.
 
 **Output Format**
@@ -179,6 +179,7 @@ Endpoints
   * ``verbose`` - (Optional, defaults to false.) A boolean.  If it is false then the report will omit some detail to conserve bandwidth.
 
   * ``reflist`` - (Optional, may be repeated.) A refspec.  This specifies which tree or trees to report.
+    If omitted, the tree associated with the current HEAD commit will be listed.
 
   * the general ``output_format`` and ``callback`` parameters discussed above.
 
@@ -240,6 +241,121 @@ JSONP Status::
 XML Status (piped to xmllint for formatting)::
 
     curl -XPOST -H 'Accept: text/xml' localhost:8182/status | xmllint --format - 
+
+Query Responses
+===============
+
+Here we document the JSON formats used to respond to web API queries.
+The XML formats are structured analogously, but not yet documented.
+
+Status
+------
+
+A status document is a JSON object containing three fields: 
+
+    * ``response`` - A wrapper for the entire response.
+
+        * ``success`` - A boolean, true if no errors occurred while handling the request, false otherwise.
+          If false, a field named ``errors`` may be added containing an array of strings with error messages.
+
+        * ``staged`` - An array of diff entries (discussed below) for changes that are *staged* for inclusion in the next commit.
+
+        * ``unstaged`` - An array of diff entries for changes that have been made in the working database but that are not yet staged for commit.
+
+Log
+---
+
+A log document is a JSON object containing two fields:
+
+    * ``response`` - A wrapper for the entire response.
+
+        * ``success`` - A boolean, true if no errors occurred while handling the request, false otherwise.
+          If false, a field named ``errors`` may be added containing an array of strings with error messages.
+
+        * ``commit`` - An array of commit objects.
+          Each commit object itself contains information about one revision of the GeoGit history.
+
+              * ``id`` - A string containing the objectid for the commit.
+              
+              * ``tree`` - A string containing the objectid for the commit's tree.
+
+              * ``parents`` - An array of objects. Each object contains:
+
+                  * ``id`` - A string containing the objectid for a commit, a parent of the current commit.
+
+              * ``author`` - An attribution of the original editor who made changes to the data.
+
+                  * ``name`` - A string containing the user's name.
+
+                  * ``email`` - A string containing the user's email address.
+
+                  * ``timestamp`` - A number, containing the timestamp when the change was made.  This is expressed as a unix timestamp; that is, the number of milliseconds that have passed since Jan 1, 1970 (the "UNIX epoch").
+
+                  * ``timeZoneOffset`` - A number, containing the timezone offset for the timestamp (expressed as seconds difference from UTC).
+
+              * ``committer`` - An attribution of the user who committed the change into GeoGit.  Expressed using the same structure as the ``author`` field.
+
+              * ``message`` - A note from the committer describing the changes made in the commit.
+
+ls-tree
+-------
+
+The response to an ls-tree request is a JSON object.
+
+    * ``response`` - A wrapper for the entire response.
+
+        * ``success`` - A boolean, true if no errors occurred while handling the request, false otherwise.
+          If false, a field named ``errors`` may be added containing an array of strings with error messages.
+
+        * ``node`` - A list of objects containing information about nodes in the specified tree.
+
+          * ``path`` - A string containing the path to the described node
+
+          * ``metadataId`` - (Only in verbose output) The objectId of the metadata object associated with this node.
+
+          * ``type`` - (Only in verbose output) A string indicating the type of the object at this path, currently this can either be ``feature`` or ``tree``.
+          
+          * ``objectId`` - (Only in verbose output) The objectId of the object referenced by this node.
+
+update-ref
+----------
+
+The response to an update-ref request is a JSON object.
+
+    * ``response`` - A wrapper for the entire response.
+
+        * ``success`` - A boolean, true if no errors occurred while handling the request, false otherwise.
+          If false, a field named ``errors`` may be added containing an array of strings with error messages.
+
+        * ``ChangedRef`` - An object describing the changes made
+
+          * ``name`` - A string containing the name of the updated ref
+
+          * ``objectId`` - A string containing the object id that the ref now points to
+
+          * ``target`` - If the ref is a symbolic one, then this field contains the concrete ref for which it is an alias.
+
+diff
+----
+
+The response to a diff request is a JSON object.
+
+    * ``response`` - A wrapper for the entire response.
+
+        * ``success`` - A boolean, true if no errors occurred while handling the request, false otherwise.
+          If false, a field named ``errors`` may be added containing an array of strings with error messages.
+
+        * ``diff`` - An array of objects containing information about changes that would be required to modify the "old" revision to produce the "new" revision.
+
+          * ``changeType`` - A string, one of "ADDED" (the feature was not present in the old revision), "REMOVED" (the feature is no longer present in the new revision), or "MODIFIED" (the feature was present in both old and new revisions, but with different attribute values.)
+
+          * ``newPath`` - A string, the path to the feature in the new revision, or the empty string if it was removed.
+
+          * ``newObjectId`` - The objectid of the new version of the object, or a 40-element string of "0"'s if it was removed.
+
+          * ``oldPath`` - A string, the path to the feature in the old revision, or the empty string if it was removed.
+
+          * ``oldObjectId`` - The objectid of the old version of the object, or a 40-element string of "0"'s if it was removed.
 
 The Future
 ==========
