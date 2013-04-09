@@ -547,6 +547,7 @@ public class HttpRemoteRepo implements IRemoteRepo {
 //            originalRemoteRefValue = remoteRef.get().getObjectId();
 //        }
 //        endPush(refspec, ref.getObjectId().toString(), originalRemoteRefValue.toString());
+        updateRemoteRef(refspec, ref.getObjectId());
     }
     
     private void sendPackedObjects(Repository localRepository, 
@@ -558,6 +559,7 @@ public class HttpRemoteRepo implements IRemoteRepo {
                 String expanded = repositoryURL.toString() + "/repo/sendobject";
                 HttpURLConnection connection = (HttpURLConnection) new URL(expanded).openConnection();
                 connection.setDoOutput(true);
+                connection.setChunkedStreamingMode(4096);
                 
                 OutputStream out = connection.getOutputStream();
                 BinaryPackedObjects.Callback<Void> callback = new BinaryPackedObjects.Callback<Void>() {
@@ -659,22 +661,35 @@ public class HttpRemoteRepo implements IRemoteRepo {
         }
     }
 
-    private void endPush(String refspec, String oid, String originalRefValue) {
+//    private void endPush(String refspec, String oid, String originalRefValue) {
+//        HttpURLConnection connection = null;
+//        try {
+//            String internalIp = InetAddress.getLocalHost().getHostName();
+//            String expanded = repositoryURL.toString() + "/repo/endpush?refspec=" + refspec
+//                    + "&objectId=" + oid + "&internalIp=" + internalIp + "&originalRefValue="
+//                    + originalRefValue;
+//
+//            connection = (HttpURLConnection) new URL(expanded).openConnection();
+//            connection.setRequestMethod("GET");
+//
+//            connection.setUseCaches(false);
+//            connection.setDoOutput(true);
+//
+//            connection.getInputStream();
+//
+//        } catch (Exception e) {
+//            Throwables.propagate(e);
+//        } finally {
+//            consumeErrStreamAndCloseConnection(connection);
+//        }
+//    }
+
+    private void updateRemoteRef(String refspec, ObjectId oid) {
         HttpURLConnection connection = null;
         try {
-            String internalIp = InetAddress.getLocalHost().getHostName();
-            String expanded = repositoryURL.toString() + "/repo/endpush?refspec=" + refspec
-                    + "&objectId=" + oid + "&internalIp=" + internalIp + "&originalRefValue="
-                    + originalRefValue;
-
+            String expanded = repositoryURL.toString() + "/updateref?delete=false&name=" + refspec + "&newValue=" + oid.toString();
             connection = (HttpURLConnection) new URL(expanded).openConnection();
-            connection.setRequestMethod("GET");
-
-            connection.setUseCaches(false);
-            connection.setDoOutput(true);
-
             connection.getInputStream();
-
         } catch (Exception e) {
             Throwables.propagate(e);
         } finally {
