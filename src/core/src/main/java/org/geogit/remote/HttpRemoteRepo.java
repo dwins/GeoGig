@@ -302,7 +302,6 @@ public class HttpRemoteRepo implements IRemoteRepo {
             final Set<ObjectId> have)
     {
         final JsonObject message = createFetchMessage(want, have);
-        System.out.println("Fetch: " + message);
         final URL resourceURL;
         try {
             resourceURL = new URL(repositoryURL.toString() + "/repo/objects");
@@ -413,7 +412,6 @@ public class HttpRemoteRepo implements IRemoteRepo {
     private Set<ObjectId> heads(Repository localRepository) {
         Set<ObjectId> results = new HashSet<ObjectId>();
         Map<String, String> allRefs = localRepository.getRefDatabase().getAll();
-        System.out.println("Refs: " + allRefs);
         for (Map.Entry<String, String> entry : allRefs.entrySet()) {
             final String id  = entry.getValue();
             if (id == null) continue;
@@ -436,7 +434,6 @@ public class HttpRemoteRepo implements IRemoteRepo {
         }
         message.add("want", wantArray);
         message.add("have", haveArray);
-        System.out.println("Exists: " + message.toString());
         
         try {
             final URL resourceURL = new URL(repositoryURL.toString() + "/repo/exists");
@@ -470,11 +467,9 @@ public class HttpRemoteRepo implements IRemoteRepo {
                 results.put(id, parents);
             }
             JsonArray responseMatchArray = response.get("missing").getAsJsonArray();
-            System.out.println("Missing: " + responseMatchArray);
             for (JsonElement e : responseMatchArray) {
                 JsonPrimitive p = e.getAsJsonPrimitive();
                 have.remove(ObjectId.valueOf(p.getAsString()));
-                System.out.println("Removed: " + p + " from " + have);
             }
             return results;
         } catch (Exception e) {
@@ -509,7 +504,6 @@ public class HttpRemoteRepo implements IRemoteRepo {
             throws PushException {
         Optional<Ref> remoteRef = checkPush(localRepository, ref, refspec);
         ImmutableSet<ObjectId> heads = remoteHeads();
-//        System.out.println("Heads: " + heads);
         Set<ObjectId> roots = commonRoots(ImmutableList.copyOf(heads), localRepository);
         List<ObjectId> toSend = new ArrayList<ObjectId>();
         toSend.add(ref.getObjectId());

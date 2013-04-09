@@ -58,8 +58,6 @@ public final class BinaryPackedObjects {
         }
 
         int commitsSent = 0;
-        System.out.println("Want: " + want);
-        System.out.println("Have: " + have);
         Iterator<RevObject> objects = PostOrderIterator.range(want, have, repository);
         while (objects.hasNext() && commitsSent < CAP) {
             RevObject object = objects.next();
