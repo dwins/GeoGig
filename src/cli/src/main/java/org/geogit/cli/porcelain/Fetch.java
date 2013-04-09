@@ -59,6 +59,10 @@ public class Fetch extends AbstractCommand implements CLICommand {
      */
     @Override
     public void runInternal(GeogitCLI cli) throws Exception {
+        if (cli.getGeogit() == null) {
+            cli.getConsole().println("Not a geogit repository.");
+            return;
+        }
         FetchOp fetch = cli.getGeogit().command(FetchOp.class);
         fetch.setProgressListener(cli.getProgressListener());
         fetch.setAll(all).setPrune(prune);
