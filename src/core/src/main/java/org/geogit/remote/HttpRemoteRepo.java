@@ -332,7 +332,7 @@ public class HttpRemoteRepo implements IRemoteRepo {
             throw Throwables.propagate(e);
         }
         
-        BinaryPackedObjects unpacker = new BinaryPackedObjects(localRepository);
+        BinaryPackedObjects unpacker = new BinaryPackedObjects(localRepository.getObjectDatabase());
         BinaryPackedObjects.Callback<Void> callback = new BinaryPackedObjects.Callback<Void>() {
             @Override
             public Void callback(RevObject object, Void state) {
@@ -568,7 +568,7 @@ public class HttpRemoteRepo implements IRemoteRepo {
                         return null;
                     }
                 };
-                BinaryPackedObjects packer = new BinaryPackedObjects(localRepository);
+                BinaryPackedObjects packer = new BinaryPackedObjects(localRepository.getObjectDatabase());
                 packer.write(out, toSend, ImmutableList.copyOf(roots), sent, callback);
                 out.flush();
                 out.close();

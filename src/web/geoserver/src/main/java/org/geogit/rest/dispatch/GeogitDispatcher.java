@@ -98,7 +98,7 @@ public class GeogitDispatcher extends AbstractController {
     private Router makeRepoRouter() {
         Router router = new Router();
         router.attach("/manifest", ManifestResource.class);
-        router.attach("/objects/{id}", new ObjectFinder());
+        router.attach("/objects", new ObjectFinder());
         router.attach("/sendobject", SendObjectResource.class);
         router.attach("/exists", ObjectExistsResource.class);
         router.attach("/beginpush", BeginPush.class);

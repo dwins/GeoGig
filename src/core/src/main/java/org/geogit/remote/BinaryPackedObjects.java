@@ -18,6 +18,7 @@ import org.geogit.api.RevObject;
 import org.geogit.api.RevTree;
 import org.geogit.repository.PostOrderIterator;
 import org.geogit.repository.Repository;
+import org.geogit.storage.ObjectDatabase;
 import org.geogit.storage.ObjectReader;
 import org.geogit.storage.ObjectSerializingFactory;
 import org.geogit.storage.ObjectWriter;
@@ -33,10 +34,10 @@ public final class BinaryPackedObjects {
     private final ObjectReader<RevObject> objectReader;
     
     private final int CAP = 100;
-    private final Repository repository;
+    private ObjectDatabase objectDatabase;
     
-    public BinaryPackedObjects(Repository repository) {
-        this.repository = repository;
+    public BinaryPackedObjects(ObjectDatabase objectDatabase) {
+        this.objectDatabase = objectDatabase;
         final ObjectSerializingFactory factory = new DataStreamSerializationFactory();
         this.commitWriter = factory.createObjectWriter(RevObject.TYPE.COMMIT);
         this.treeWriter = factory.createObjectWriter(RevObject.TYPE.TREE);
@@ -52,13 +53,13 @@ public final class BinaryPackedObjects {
     public <T> T write(OutputStream out, List<ObjectId> want, List<ObjectId> have, Set<ObjectId> sent, Callback<T> callback) throws IOException {
         T state = null;
         for (ObjectId i : want) {
-            if (! repository.blobExists(i)) { 
+            if (objectDatabase.getIfPresent(i) == null) { 
                 throw new NoSuchElementException("Wanted id: " + i + " is not known");
             }
         }
 
         int commitsSent = 0;
-        Iterator<RevObject> objects = PostOrderIterator.range(want, have, repository);
+        Iterator<RevObject> objects = PostOrderIterator.range(want, have, objectDatabase);
         while (objects.hasNext() && commitsSent < CAP) {
             RevObject object = objects.next();
 
@@ -101,9 +102,9 @@ public final class BinaryPackedObjects {
         ObjectId id = readObjectId(in);
         RevObject revObj = objectReader.read(id, in);
         final T result;
-        if (!repository.getObjectDatabase().exists(id)) {
+        if (!objectDatabase.exists(id)) {
             result = callback.callback(revObj, state);
-            repository.getObjectDatabase().put(revObj);
+            objectDatabase.put(revObj);
         } else {
             result = state;
         }

@@ -31,6 +31,6 @@ public final class WalkGraphOp extends AbstractGeoGitOp<Iterator<RevObject>> {
     public Iterator<RevObject> call() {
         Optional<ObjectId> ref = command(RevParse.class).setRefSpec(reference).call();
         if (!ref.isPresent()) return Iterators.emptyIterator();
-        return PostOrderIterator.all(ref.get(), ggit.getRepository());
+        return PostOrderIterator.all(ref.get(), ggit.getRepository().getObjectDatabase());
     }
 }

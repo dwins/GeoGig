@@ -13,35 +13,36 @@ import org.geogit.api.ObjectId;
 import org.geogit.api.RevCommit;
 import org.geogit.api.RevObject;
 import org.geogit.api.RevTree;
+import org.geogit.storage.ObjectDatabase;
 
 import com.google.common.collect.AbstractIterator;
 
 public class PostOrderIterator extends AbstractIterator<RevObject> {
-    private final Repository repository;
+    private final ObjectDatabase objectDatabase;
     private List<List<ObjectId>> toVisit;
     private boolean down; // true when we're traversing backward through time, false on the return trip
     private final Successors successors;
     
-    public static Iterator<RevObject> all(ObjectId top, Repository repository) {
+    public static Iterator<RevObject> all(ObjectId top, ObjectDatabase objectDatabase) {
         List<ObjectId> start = new ArrayList<ObjectId>();
         start.add(top);
-        return new PostOrderIterator(start, repository, unique(ALL_SUCCESSORS));
+        return new PostOrderIterator(start, objectDatabase, unique(ALL_SUCCESSORS));
     }
     
     public static Iterator<RevObject> range(
             List<ObjectId> start,
             List<ObjectId> base,
-            Repository repository)
+            ObjectDatabase objectDatabase)
     {
         return new PostOrderIterator(
                 new ArrayList<ObjectId>(start),
-                repository,
+                objectDatabase,
                 unique(blacklist(ALL_SUCCESSORS, base)));
     }
 
-    private PostOrderIterator(List<ObjectId> start, Repository repository, Successors successors) {
+    private PostOrderIterator(List<ObjectId> start, ObjectDatabase objectDatabase, Successors successors) {
         super();
-        this.repository = repository;
+        this.objectDatabase = objectDatabase;
         this.down = true;
         this.successors = successors;
         toVisit = new ArrayList<List<ObjectId>>();
@@ -59,14 +60,14 @@ public class PostOrderIterator extends AbstractIterator<RevObject> {
             } else {
                 if (down) {
                     final ObjectId id = currentList.get(0);
-                    final RevObject object = repository.getObjectDatabase().get(id);
+                    final RevObject object = objectDatabase.get(id);
                     final List<ObjectId> next = successors.findSuccessors(object);
                     toVisit.add(0, next);
                 } else {
                     down = true;
                     final ObjectId id = currentList.remove(0);
                     if (successors.previsit(id)) {
-                        return repository.getObjectDatabase().get(id);
+                        return objectDatabase.get(id);
                     }
                 }
             }

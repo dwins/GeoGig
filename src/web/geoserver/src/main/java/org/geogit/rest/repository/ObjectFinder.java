@@ -9,11 +9,15 @@ import static org.geogit.rest.repository.GeogitResourceUtils.getGeogit;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.Reader;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.geogit.api.GeoGIT;
 import org.geogit.api.ObjectId;
+import org.geogit.remote.BinaryPackedObjects;
 import org.geogit.repository.Repository;
 import org.restlet.Context;
 import org.restlet.Finder;
@@ -21,11 +25,14 @@ import org.restlet.data.MediaType;
 import org.restlet.data.Request;
 import org.restlet.data.Response;
 import org.restlet.resource.OutputRepresentation;
+import org.restlet.resource.Representation;
 import org.restlet.resource.Resource;
-import org.restlet.resource.Variant;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * Expects an {@code id} request attribute containing the string representation of an
@@ -33,75 +40,95 @@ import com.google.common.base.Preconditions;
  * a plain byte stream.
  */
 public class ObjectFinder extends Finder {
-
+    
     @Override
     public Resource findTarget(Request request, Response response) {
-
-        if (request.getAttributes().containsKey("id")) {
-            final Optional<GeoGIT> ggit = getGeogit(request);
-            Preconditions.checkState(ggit.isPresent());
-
-            final String id = (String) request.getAttributes().get("id");
-            final ObjectId oid = ObjectId.valueOf(id);
-
-            GeoGIT geogit = ggit.get();
-            Repository repository = geogit.getRepository();
-            boolean blobExists = repository.blobExists(oid);
-            if (blobExists) {
-                ObjectResource objectResource = new ObjectResource(oid, geogit);
-                objectResource.init(getContext(), request, response);
-                return objectResource;
-            }
-        }
-
-        return super.findTarget(request, response);
+        return new ObjectResource(getContext(), request, response);
     }
 
     private static class ObjectResource extends Resource {
-
-        private ObjectId oid;
-
-        private GeoGIT geogit;
-
-        public ObjectResource(ObjectId oid, GeoGIT geogit) {
-            this.oid = oid;
-            this.geogit = geogit;
+        public ObjectResource(//
+                Context context, //
+                Request request, //
+                Response response) //
+        {
+            super(context, request, response);
         }
 
         @Override
-        public void init(Context context, Request request, Response response) {
-            super.init(context, request, response);
-            List<Variant> variants = getVariants();
-
-            variants.add(new RevObjectBinaryRepresentation(oid, geogit));
+        public boolean allowPost() {
+            return true;
+        }
+        
+        @Override
+        public void post(Representation entity) {
+            final InputStream inStream;
+            try {
+                inStream = entity.getStream();
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
+            }
+            
+            final Reader body = new InputStreamReader(inStream);
+            final JsonParser parser = new JsonParser();
+            final JsonElement messageJson = parser.parse(body);
+            
+            final List<ObjectId> want = new ArrayList<ObjectId>();
+            final List<ObjectId> have = new ArrayList<ObjectId>();
+            
+            if (messageJson.isJsonObject()) {
+                final JsonObject message = messageJson.getAsJsonObject();
+                final JsonArray wantArray;
+                final JsonArray haveArray;
+                if (message.has("want") && message.get("want").isJsonArray()) {
+                    wantArray = message.get("want").getAsJsonArray();
+                } else {
+                    wantArray = new JsonArray();
+                }
+                if (message.has("have") && message.get("have").isJsonArray()) {
+                    haveArray = message.get("have").getAsJsonArray();
+                } else {
+                    haveArray = new JsonArray();
+                }
+                for (final JsonElement e : wantArray) {
+                    if (e.isJsonPrimitive()) {
+                        want.add(ObjectId.valueOf(e.getAsJsonPrimitive().getAsString()));
+                    }
+                }
+                for (final JsonElement e : haveArray) {
+                    if (e.isJsonPrimitive()) {
+                        have.add(ObjectId.valueOf(e.getAsJsonPrimitive().getAsString()));
+                    }
+                }
+            }
+            
+            final GeoGIT ggit = getGeogit(getRequest()).get();
+            final Repository repository = ggit.getRepository();
+            
+            BinaryPackedObjects packer = new BinaryPackedObjects(repository.getIndex().getDatabase());
+            getResponse().setEntity(new RevObjectBinaryRepresentation(packer, want, have));
         }
     }
 
     private static class RevObjectBinaryRepresentation extends OutputRepresentation {
-        private final ObjectId oid;
-
-        private final GeoGIT ggit;
-
-        public RevObjectBinaryRepresentation(ObjectId oid, GeoGIT ggit) {
+        private final BinaryPackedObjects packer;
+        private final List<ObjectId> want;
+        private final List<ObjectId> have;
+        
+        public RevObjectBinaryRepresentation( //
+                BinaryPackedObjects packer, //
+                List<ObjectId> want, //
+                List<ObjectId> have) // 
+        {
             super(MediaType.APPLICATION_OCTET_STREAM);
-            this.oid = oid;
-            this.ggit = ggit;
+            this.packer = packer;
+            this.want = want;
+            this.have = have;
         }
 
         @Override
         public void write(OutputStream out) throws IOException {
-            Repository repository = ggit.getRepository();
-            InputStream rawObject = repository.getRawObject(oid);
-            try {
-                byte[] buff = new byte[8192];
-                int len = 0;
-                while ((len = rawObject.read(buff)) >= 0) {
-                    out.write(buff, 0, len);
-                }
-                out.flush();
-            } finally {
-                rawObject.close();
-            }
+            packer.write(out, want, have);
         }
     }
 

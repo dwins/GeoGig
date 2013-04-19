@@ -7,22 +7,29 @@ package org.geogit.rest.repository;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+import java.io.EOFException;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.net.URL;
+import java.util.Iterator;
 import java.util.Map;
 
 import org.geogit.api.GeoGIT;
 import org.geogit.api.ObjectId;
 import org.geogit.api.Ref;
+import org.geogit.api.RevCommit;
 import org.geogit.api.RevObject;
 import org.geogit.api.plumbing.RefParse;
 import org.geogit.api.plumbing.ResolveGeogitDir;
 import org.geogit.api.plumbing.ResolveTreeish;
 import org.geogit.api.plumbing.RevObjectParse;
 import org.geogit.api.porcelain.CommitOp;
+import org.geogit.api.porcelain.LogOp;
+import org.geogit.cli.porcelain.Log;
 import org.geogit.di.GeogitModule;
 import org.geogit.geotools.data.GeoGitDataStore;
 import org.geogit.geotools.data.GeoGitDataStoreFactory;
@@ -44,6 +51,14 @@ import org.opengis.feature.Feature;
 import org.opengis.feature.type.FeatureType;
 import org.restlet.data.MediaType;
 
+import com.google.common.base.Throwables;
+import com.google.common.collect.AbstractIterator;
+import com.google.common.collect.Iterators;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.util.Modules;
@@ -148,7 +163,7 @@ public class GeoServerRESTIntegrationTest extends GeoServerSystemTestSupport {
      */
     @Test
     public void testRevObjectExists() throws Exception {
-        final String resource = BASE_URL + "/repo/exists?oid=";
+        final String resource = BASE_URL + "/repo/exists";
 
         GeoGIT geogit = helper.getGeogit();
         Ref head = geogit.command(RefParse.class).setName(Ref.HEAD).call().get();
@@ -156,14 +171,35 @@ public class GeoServerRESTIntegrationTest extends GeoServerSystemTestSupport {
 
         String url;
         url = resource + commitId.toString();
-        assertResponse(url, "1");
+        JsonParser parser = new JsonParser();
+//        MockHttpServletResponse response = getAsServletResponse(url);
+//        JsonElement json = parser.parse(response.getOutputStreamContent());
+//        assertTrue(json.isJsonObject());
+//        assertTrue(json.getAsJsonObject().has("history"));
+//        assertTrue(json.getAsJsonObject().has("missing"));
+        
+        JsonObject requestBody = new JsonObject();
+        JsonArray wantList = new JsonArray();
+        wantList.add(new JsonPrimitive(commitId.toString()));
+        requestBody.add("want", wantList);
+        
+//        fail(requestBody.toString());
+        MockHttpServletResponse response = postAsServletResponse(url, requestBody.toString(), "application/json");
+        response.getErrorCode();
+        JsonElement json = parser.parse(response.getOutputStreamContent());
+        assertTrue(json.isJsonObject());
+        assertTrue(json.getAsJsonObject().has("history"));
+        assertTrue(json.getAsJsonObject().get("history").isJsonArray());
+        assertTrue(json.getAsJsonObject().get("history").getAsJsonArray().size() == 1);
+        assertTrue(json.getAsJsonObject().has("missing"));
+        assertTrue(json.getAsJsonObject().get("missing").isJsonArray());
 
-        ObjectId treeId = geogit.command(ResolveTreeish.class).setTreeish(commitId).call().get();
-        url = resource + treeId.toString();
-        assertResponse(url, "1");
-
-        url = resource + ObjectId.forString("fake");
-        assertResponse(url, "0");
+//        ObjectId treeId = geogit.command(ResolveTreeish.class).setTreeish(commitId).call().get();
+//        url = resource + treeId.toString();
+//        assertResponse(url, "1");
+//
+//        url = resource + ObjectId.forString("fake");
+//        assertResponse(url, "0");
     }
 
     /**
@@ -174,22 +210,31 @@ public class GeoServerRESTIntegrationTest extends GeoServerSystemTestSupport {
         GeoGIT geogit = helper.getGeogit();
         Ref head = geogit.command(RefParse.class).setName(Ref.HEAD).call().get();
         ObjectId commitId = head.getObjectId();
-        ObjectId treeId = geogit.command(ResolveTreeish.class).setTreeish(commitId).call().get();
+//        ObjectId treeId = geogit.command(ResolveTreeish.class).setTreeish(commitId).call().get();
 
         testGetRemoteObject(commitId);
-        testGetRemoteObject(treeId);
+//        testGetRemoteObject(treeId);
     }
 
     private void testGetRemoteObject(ObjectId oid) throws Exception {
         GeoGIT geogit = helper.getGeogit();
 
-        final String resource = BASE_URL + "/repo/objects/";
-        final String url = resource + oid.toString();
+        final String resource = BASE_URL + "/repo/objects";
+        final String url = resource;
+        
+        RevObject expected = geogit.command(RevObjectParse.class).setObjectId(oid).call().get();
+        geogit.command(RevObjectParse.class).setObjectId(ObjectId.valueOf("e56a8b48066e918fc0a2a3c117500a8da59b6519")).call().get();
+//        fail(oid.toString());
+
+        JsonObject requestBody = new JsonObject();
+        JsonArray wantList = new JsonArray();
+        wantList.add(new JsonPrimitive(oid.toString()));
+        requestBody.add("want", wantList);
 
         MockHttpServletResponse servletResponse;
         InputStream responseStream;
 
-        servletResponse = getAsServletResponse(url);
+        servletResponse = postAsServletResponse(url, requestBody.toString(), "application/json");
         assertEquals(200, servletResponse.getStatusCode());
 
         String contentType = MediaType.APPLICATION_OCTET_STREAM.toString();
@@ -199,21 +244,46 @@ public class GeoServerRESTIntegrationTest extends GeoServerSystemTestSupport {
 
         ObjectSerializingFactory factory = new DataStreamSerializationFactory();
 
-        RevObject actual = factory.createObjectReader().read(oid, responseStream);
-        RevObject expected = geogit.command(RevObjectParse.class).setObjectId(oid).call().get();
+//        RevObject actual = factory.createObjectReader().read(oid, responseStream);
+        Iterator<RevObject> objects = new ObjectStreamIterator(responseStream, factory);
+        RevObject actual = Iterators.getLast(objects);
         assertEquals(expected, actual);
     }
 
-    private MockHttpServletResponse assertResponse(String url, String expectedContent)
-            throws Exception {
-
+    private MockHttpServletResponse assertResponse(String url, String expectedContent) throws Exception {
         MockHttpServletResponse sr = getAsServletResponse(url);
-        assertEquals(200, sr.getStatusCode());
+        assertEquals(sr.getOutputStreamContent(), 200, sr.getStatusCode());
 
         String responseBody = sr.getOutputStreamContent();
 
         assertNotNull(responseBody);
         assertEquals(expectedContent, responseBody);
         return sr;
+    }
+    
+    private class ObjectStreamIterator extends AbstractIterator<RevObject> {
+        private final InputStream bytes;
+        private final ObjectSerializingFactory formats;
+        
+        public ObjectStreamIterator(InputStream input, ObjectSerializingFactory formats) {
+            this.bytes = input;
+            this.formats = formats;
+        }
+
+        @Override
+        protected RevObject computeNext() {
+            try {
+                byte[] id = new byte[20];
+                int len = bytes.read(id, 0, 20);
+                if (len < 0) return endOfData();
+                if (len != 20) throw new IllegalStateException("We need a 'readFully' operation!");
+                System.out.println(bytes);
+                return formats.createObjectReader().read(new ObjectId(id), bytes);
+            } catch (EOFException e) {
+                return endOfData();
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
+            }
+        }
     }
 }
