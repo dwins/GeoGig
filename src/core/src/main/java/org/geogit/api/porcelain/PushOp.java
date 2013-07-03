@@ -13,11 +13,13 @@ import org.geogit.api.GlobalInjectorBuilder;
 import org.geogit.api.Ref;
 import org.geogit.api.Remote;
 import org.geogit.api.SymRef;
+import org.geogit.api.plumbing.CreateDeduplicator;
 import org.geogit.api.plumbing.ForEachRef;
 import org.geogit.api.plumbing.RefParse;
 import org.geogit.remote.IRemoteRepo;
 import org.geogit.remote.RemoteUtils;
 import org.geogit.repository.Repository;
+import org.geogit.storage.Deduplicator;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -151,7 +153,12 @@ public class PushOp extends AbstractGeoGitOp<Void> {
                                     headRef.getTarget()).call();
                             Preconditions.checkState(targetRef.isPresent());
 
-                            remoteRepo.get().pushNewData(targetRef.get());
+                            Deduplicator deduplicator = command(CreateDeduplicator.class).call();
+                            try {
+                                remoteRepo.get().pushNewData(targetRef.get(), deduplicator);
+                            } finally {
+                                deduplicator.release();
+                            }
                         }
                     } else {
                         Optional<Ref> localRef = command(RefParse.class).setName(localrefspec)
@@ -159,7 +166,12 @@ public class PushOp extends AbstractGeoGitOp<Void> {
                         Preconditions.checkArgument(localRef.isPresent(),
                                 "Local ref could not be resolved.");
                         // push the localref branch to the remoteref branch
-                        remoteRepo.get().pushNewData(localRef.get(), remoterefspec);
+                        Deduplicator deduplicator = command(CreateDeduplicator.class).call();
+                        try {
+                            remoteRepo.get().pushNewData(localRef.get(), remoterefspec, deduplicator);
+                        } finally {
+                            deduplicator.release();
+                        }
                     }
 
                 }
@@ -190,7 +202,12 @@ public class PushOp extends AbstractGeoGitOp<Void> {
                 }
 
                 for (Ref ref : refsToPush) {
-                    remoteRepo.get().pushNewData(ref);
+                    Deduplicator deduplicator = command(CreateDeduplicator.class).call();
+                    try {
+                        remoteRepo.get().pushNewData(ref, deduplicator);
+                    } finally {
+                        deduplicator.release();
+                    }
                 }
             }
 

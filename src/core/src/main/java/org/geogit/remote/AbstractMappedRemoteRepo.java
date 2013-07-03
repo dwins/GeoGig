@@ -34,6 +34,7 @@ import org.geogit.api.porcelain.ConfigOp.ConfigAction;
 import org.geogit.api.porcelain.SynchronizationException;
 import org.geogit.api.porcelain.SynchronizationException.StatusCode;
 import org.geogit.repository.Repository;
+import org.geogit.storage.Deduplicator;
 import org.geogit.storage.GraphDatabase;
 
 import com.google.common.base.Optional;
@@ -295,8 +296,8 @@ abstract class AbstractMappedRemoteRepo implements IRemoteRepo {
      * @param ref the local ref that points to new commit data
      */
     @Override
-    public void pushNewData(Ref ref) throws SynchronizationException {
-        pushNewData(ref, ref.getName());
+    public void pushNewData(Ref ref, Deduplicator deduplicator) throws SynchronizationException {
+        pushNewData(ref, ref.getName(), deduplicator);
     }
 
     /**
@@ -306,7 +307,7 @@ abstract class AbstractMappedRemoteRepo implements IRemoteRepo {
      * @param refspec the refspec to push to
      */
     @Override
-    public void pushNewData(Ref ref, String refspec) throws SynchronizationException {
+    public void pushNewData(Ref ref, String refspec, Deduplicator deduplicator) throws SynchronizationException {
         Optional<Ref> remoteRef = getRemoteRef(refspec);
         checkPush(ref, remoteRef);
         beginPush();

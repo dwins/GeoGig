@@ -26,6 +26,7 @@ import org.geogit.api.RevCommit;
 import org.geogit.api.RevObject;
 import org.geogit.api.porcelain.SynchronizationException;
 import org.geogit.repository.Repository;
+import org.geogit.storage.Deduplicator;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
@@ -209,9 +210,10 @@ class HttpRemoteRepo extends AbstractRemoteRepo {
      * 
      * @param ref the local ref that points to new commit data
      * @param refspec the remote branch to push to
+     * @param deduplicator 
      */
     @Override
-    public void pushNewData(Ref ref, String refspec) throws SynchronizationException {
+    public void pushNewData(Ref ref, String refspec, Deduplicator deduplicator) throws SynchronizationException {
         Optional<Ref> remoteRef = HttpUtils.getRemoteRef(repositoryURL, refspec);
         checkPush(ref, remoteRef);
         beginPush();
@@ -226,7 +228,7 @@ class HttpRemoteRepo extends AbstractRemoteRepo {
         Set<ObjectId> have = new HashSet<ObjectId>();
         have.addAll(traverser.have);
 
-        sendPackedObjects(toSend, have);
+        sendPackedObjects(toSend, have, deduplicator);
 
         ObjectId originalRemoteRefValue = ObjectId.NULL;
         if (remoteRef.isPresent()) {
@@ -235,7 +237,7 @@ class HttpRemoteRepo extends AbstractRemoteRepo {
         endPush(refspec, ref.getObjectId(), originalRemoteRefValue.toString());
     }
 
-    private void sendPackedObjects(final List<ObjectId> toSend, final Set<ObjectId> roots) {
+    private void sendPackedObjects(final List<ObjectId> toSend, final Set<ObjectId> roots, Deduplicator deduplicator) {
         Set<ObjectId> sent = new HashSet<ObjectId>();
         while (!toSend.isEmpty()) {
             try {
@@ -260,7 +262,7 @@ class HttpRemoteRepo extends AbstractRemoteRepo {
                 };
                 BinaryPackedObjects packer = new BinaryPackedObjects(
                         localRepository.getObjectDatabase());
-                packer.write(out, toSend, ImmutableList.copyOf(roots), sent, callback, false);
+                packer.write(out, toSend, ImmutableList.copyOf(roots), sent, callback, false, deduplicator);
                 out.flush();
                 out.close();
 
