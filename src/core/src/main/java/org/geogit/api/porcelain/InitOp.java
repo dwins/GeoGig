@@ -14,6 +14,7 @@ import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.List;
 
 import org.geogit.api.AbstractGeoGitOp;
 import org.geogit.api.ObjectId;
@@ -26,10 +27,12 @@ import org.geogit.api.plumbing.UpdateSymRef;
 import org.geogit.di.CanRunDuringConflict;
 import org.geogit.repository.Repository;
 import org.geogit.repository.RepositoryConnectionException;
+import org.geogit.storage.ConfigDatabase;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -51,6 +54,8 @@ import com.google.inject.Injector;
 @CanRunDuringConflict
 public class InitOp extends AbstractGeoGitOp<Repository> {
 
+    private List<String> initialOptions;
+
     private Platform platform;
 
     private Injector injector;
@@ -68,6 +73,11 @@ public class InitOp extends AbstractGeoGitOp<Repository> {
         checkNotNull(injector);
         this.platform = platform;
         this.injector = injector;
+    }
+
+    public InitOp setInitialOptions(List<String> options) {
+        this.initialOptions = ImmutableList.copyOf(options);
+        return this;
     }
 
     /**
@@ -110,6 +120,18 @@ public class InitOp extends AbstractGeoGitOp<Repository> {
                     .equals(new ResolveGeogitDir(platform).call()));
         } catch (MalformedURLException e) {
             Throwables.propagate(e);
+        }
+
+        if (!repoExisted && initialOptions != null && initialOptions.size() > 1) {
+            // the size check wasn't strictly necessary but we can skip the
+            // early access to the config database entirely if there are no
+            // config options to set as a small optimization
+            ConfigDatabase configDB = injector.getInstance(ConfigDatabase.class);
+            for (int i = 0; i + 1 < initialOptions.size(); i += 2) {
+                String name = initialOptions.get(i);
+                String value = initialOptions.get(i + 1);
+                configDB.put(name, value);
+            }
         }
 
         Repository repository;

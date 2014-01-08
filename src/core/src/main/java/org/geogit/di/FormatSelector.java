@@ -1,0 +1,34 @@
+package org.geogit.di;
+
+import java.util.Map;
+import org.geogit.storage.ConfigDatabase;
+import org.geogit.storage.GraphDatabase;
+import com.google.inject.Provider;
+
+public abstract class FormatSelector<T> implements Provider<T> {
+    private final ConfigDatabase config;
+    private final Map<VersionedFormat, Provider<T>> plugins;
+
+    public FormatSelector(ConfigDatabase config, Map<VersionedFormat, Provider<T>> plugins) {
+        this.config = config;
+        this.plugins = plugins;
+    }
+
+    protected abstract VersionedFormat readConfig(ConfigDatabase config);
+
+    @Override
+    final public T get() {
+        try {
+            VersionedFormat configuredFormat = readConfig(config);
+            Provider<T> formatProvider = plugins.get(configuredFormat);
+            if (formatProvider == null) {
+                throw new RuntimeException("No such format: " + configuredFormat + "(from " + config.getAll() + ")");
+            } else {
+                return formatProvider.get();
+            }
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+            throw e;
+        }
+    }
+}

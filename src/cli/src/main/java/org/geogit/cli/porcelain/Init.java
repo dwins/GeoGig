@@ -23,6 +23,7 @@ import org.geogit.repository.Repository;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import com.google.common.collect.ImmutableList;
 
 /**
  * This command creates an empty geogit repository - basically a .geogit directory with
@@ -44,6 +45,19 @@ public class Init extends AbstractCommand implements CLICommand {
 
     @Parameter(description = "Repository location (directory).", required = false, arity = 1)
     private List<String> location;
+
+    @Parameter(names={ "-c", "--config" }, description = "Configuration options for new repository", required = false, variableArity=true)
+    private List<String> configuration;
+
+    private final static List<String> defaultConfiguration =
+        ImmutableList.of(
+                "storage.graph", "tinkergraph",
+                "tinkergraph.version", "0.1",
+                "storage.objects", "bdbje",
+                "storage.staging", "bdbje",
+                "bdbje.version", "0.1",
+                "storage.refs", "file",
+                "file.version", "1.0");
 
     /**
      * Executes the init command.
@@ -77,7 +91,12 @@ public class Init extends AbstractCommand implements CLICommand {
             geogit = cli.getGeogit();
         }
 
-        Repository repository = geogit.command(InitOp.class).call();
+        ImmutableList.Builder<String> builder = ImmutableList.builder();
+        builder.addAll(defaultConfiguration);
+        if (configuration != null) builder.addAll(configuration);
+        List<String> effectiveConfiguration = builder.build();
+
+        Repository repository = geogit.command(InitOp.class).setInitialOptions(effectiveConfiguration).call();
         final boolean repoExisted = repository == null;
         geogit.setRepository(repository);
         cli.setGeogit(geogit);
@@ -98,6 +117,5 @@ public class Init extends AbstractCommand implements CLICommand {
             message = "Initialized empty Geogit repository in " + repoDirectory.getAbsolutePath();
         }
         cli.getConsole().println(message);
-
     }
 }
