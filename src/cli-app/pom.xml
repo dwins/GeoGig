@@ -59,6 +59,10 @@
               <mainClass>org.geogit.cli.GeogitConsole</mainClass>
               <name>geogit-console</name>
             </program>
+            <program>
+              <mainClass>org.geogit.cli.GeogitPy4JEntryPoint</mainClass>
+              <name>geogit-gateway</name>
+            </program>
           </programs>
         </configuration>
         <executions>

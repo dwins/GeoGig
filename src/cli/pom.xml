@@ -14,6 +14,14 @@
   <packaging>jar</packaging>
   <name>GeoGit Command Line Interface</name>
 
+  <repositories>
+    <repository>
+        <id>project.local</id>
+        <name>project</name>
+        <url>file:${project.basedir}/repo</url>
+    </repository>
+  </repositories>
+
   <dependencies>
     <dependency>
       <groupId>org.geogit</groupId>
@@ -83,6 +91,12 @@
       <groupId>com.google.inject</groupId>
       <artifactId>guice</artifactId>
     </dependency>
+    
+    <dependency>
+      <groupId>net.sourceforge.py4j</groupId>
+      <artifactId>py4j</artifactId>
+      <version>0.8</version>
+	</dependency>
 
     <!-- Test scope dependencies -->
     <dependency>
