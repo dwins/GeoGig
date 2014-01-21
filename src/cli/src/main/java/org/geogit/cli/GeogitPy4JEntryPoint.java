@@ -95,9 +95,9 @@ public class GeogitPy4JEntryPoint {
 
     private String[] tokenizeString(String s) {
         List<String> list = new ArrayList<String>();
-        Matcher m = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(s);
+        Matcher m = Pattern.compile("[^\\s\"']+|\"[^\"]*\"|'[^']*'").matcher(s);
         while (m.find())
-            list.add(m.group(1).replace("\"", ""));
+            list.add(m.group().replace("\"", ""));
         return list.toArray(new String[0]);
     }
 
