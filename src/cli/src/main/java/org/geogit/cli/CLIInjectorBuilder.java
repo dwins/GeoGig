@@ -22,6 +22,9 @@ import org.geogit.storage.blueprints.BlueprintsGraphModule;
 import org.geogit.storage.blueprints.TinkerGraphDatabase;
 import org.geogit.storage.fs.FileRefDatabase;
 import org.geogit.storage.neo4j.Neo4JGraphDatabase;
+import org.geogit.storage.mongo.MongoGraphDatabase;
+import org.geogit.storage.mongo.MongoObjectDatabase;
+import org.geogit.storage.mongo.MongoStagingDatabase;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
@@ -57,7 +60,15 @@ public class CLIInjectorBuilder extends InjectorBuilder {
                 .addBinding(new VersionedFormat("bdbje", "0.1"))
                 .to(JEObjectDatabase.class)
                 .in(Scopes.SINGLETON);
+            objectPlugins //
+                .addBinding(new VersionedFormat("mongodb", "0.1"))
+                .to(MongoObjectDatabase.class)
+                .in(Scopes.SINGLETON);
             MapBinder<VersionedFormat, StagingDatabase> stagingPlugins = MapBinder.newMapBinder(binder(), VersionedFormat.class, StagingDatabase.class);
+            stagingPlugins //
+                .addBinding(new VersionedFormat("mongodb", "0.1"))
+                .to(MongoStagingDatabase.class)
+                .in(Scopes.SINGLETON);
             stagingPlugins //
                 .addBinding(new VersionedFormat("bdbje", "0.1"))
                 .to(JEStagingDatabase.class)
@@ -66,6 +77,10 @@ public class CLIInjectorBuilder extends InjectorBuilder {
             graphPlugins //
                 .addBinding(new VersionedFormat("tinkergraph", "0.1")) //
                 .to(TinkerGraphDatabase.class) //
+                .in(Scopes.SINGLETON);
+            graphPlugins //
+                .addBinding(new VersionedFormat("mongodb", "0.1")) //
+                .to(MongoGraphDatabase.class) //
                 .in(Scopes.SINGLETON);
             graphPlugins //
                 .addBinding(new VersionedFormat("neo4j", "0.1")) //

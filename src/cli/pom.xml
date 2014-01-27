@@ -37,6 +37,11 @@
     </dependency>
     <dependency>
       <groupId>org.geogit</groupId>
+      <artifactId>geogit-mongodb</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.geogit</groupId>
       <artifactId>geogit-metrics</artifactId>
       <version>${project.version}</version>
     </dependency>
