@@ -13,11 +13,13 @@ import java.util.List;
 
 import org.geogit.api.GeoGIT;
 import org.geogit.api.plumbing.ResolveGeogitDir;
+import org.geogit.api.porcelain.ConfigException;
 import org.geogit.api.porcelain.InitOp;
 import org.geogit.cli.AbstractCommand;
 import org.geogit.cli.CLICommand;
 import org.geogit.cli.CommandFailedException;
 import org.geogit.cli.GeogitCLI;
+import org.geogit.cli.InvalidParameterException;
 import org.geogit.cli.RequiresRepository;
 import org.geogit.repository.Repository;
 
@@ -64,6 +66,9 @@ public class Init extends AbstractCommand implements CLICommand {
      */
     @Override
     public void runInternal(GeogitCLI cli) throws IOException {
+        if (config != null && config.size() % 2 != 0) {
+            throw new InvalidParameterException("Configuration options must all have names and values");
+        }
 
         final File repoDir;
         {

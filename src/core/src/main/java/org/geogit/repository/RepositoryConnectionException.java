@@ -31,11 +31,15 @@ public class RepositoryConnectionException extends Exception {
             Optional<String> storageVersion = configDB.get(formatName + ".version");
             if (storageName.isPresent()) {
                 throw new RepositoryConnectionException("Initializing already "
-                        + "initialized graph database");
+                        + "initialized " + key + " database. Would set " +
+                        formatName + ":" + version + " but found " +
+                        storageName.orNull() + ":" + storageVersion.orNull());
             }
             if (storageVersion.isPresent() && !version.equals(storageVersion.get())) {
                 throw new RepositoryConnectionException("Initializing already "
-                        + "initialized graph database");
+                        + "initialized " + key + " database. Would set " +
+                        formatName + ":" + version + " but found " +
+                        storageName.orNull() + ":" + storageVersion.orNull());
             }
             configDB.put("storage." + key, formatName);
             configDB.put(formatName + ".version", version);

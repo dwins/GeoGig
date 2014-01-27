@@ -32,10 +32,6 @@ public class MongoConflictsTest extends RepositoryTestCase {
 
     @Override
     public void setUpInternal() {
-        // getRepository().command(ConfigOp.class).setAction(ConfigOp.ConfigAction.CONFIG_SET).setName("mongo.host")
-        // .setValue("192.168.122.165").call();
-        // getRepository().command(ConfigOp.class).setAction(ConfigOp.ConfigAction.CONFIG_SET).setName("mongo.port")
-        // .setValue("27017").call();
     }
 
     @Override

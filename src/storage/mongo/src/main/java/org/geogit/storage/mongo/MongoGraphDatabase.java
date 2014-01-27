@@ -39,10 +39,10 @@ public class MongoGraphDatabase extends BlueprintsGraphDatabase<MongoGraph> {
 
     @Override
     protected MongoGraph getGraphDatabase() {
-        String hostname = config.get("mongo.host").get();
-        int port = config.get("mongo.port", Integer.class).get();
-        MongoClient client = manager.acquire(new MongoAddress(hostname, port));
-        DB db = client.getDB("geogit");
+        String uri = config.get("mongodb.uri").or("mongodb://localhost:27017/");
+        String database = config.get("mongodb.database").or("geogit");
+        MongoClient client = manager.acquire(new MongoAddress(uri));
+        DB db = client.getDB(database);
         DBCollection collection = db.getCollection("graph");
         return new MongoGraph(collection);
     }

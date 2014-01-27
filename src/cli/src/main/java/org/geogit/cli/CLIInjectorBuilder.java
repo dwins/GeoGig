@@ -25,6 +25,7 @@ import org.geogit.storage.neo4j.Neo4JGraphDatabase;
 import org.geogit.storage.mongo.MongoGraphDatabase;
 import org.geogit.storage.mongo.MongoObjectDatabase;
 import org.geogit.storage.mongo.MongoStagingDatabase;
+import org.geogit.storage.mongo.MongoStorageModule;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;

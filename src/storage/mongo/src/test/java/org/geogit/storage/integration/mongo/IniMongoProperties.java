@@ -41,8 +41,8 @@ public class IniMongoProperties {
                 f.createNewFile();
 
                 // Populate the file with default values
-                put("mongo.host", "localhost");
-                put("mongo.port", "27017");
+                put("mongodb.uri", "mongodb://localhost:27017/");
+                put("mongodb.database", "geogit");
             }
         } catch (IOException e) {
             throw new RuntimeException("Cannot write to the home directory.");

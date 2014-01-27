@@ -9,6 +9,14 @@ Feature: "init" command
      Then it should answer "Initialized empty Geogit repository in ${currentdir}/.geogit"
       And the repository directory shall exist
 
+  Scenario: Create repository specifying initial configuration
+    Given I am in an empty directory
+     When I run the command "init --config foo.bar baz"
+     Then it should answer "Initialized empty Geogit repository in ${currentdir}/.geogit"
+      And the repository directory shall exist
+     When I run the command "config foo.bar"
+     Then it should answer "baz"
+
   Scenario: Create repository specifying the target directory
     Given I am in an empty directory
      When I run the command "init roads"

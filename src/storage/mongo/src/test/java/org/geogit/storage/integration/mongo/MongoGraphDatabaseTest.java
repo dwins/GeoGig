@@ -19,7 +19,7 @@ public class MongoGraphDatabaseTest extends GraphDatabaseTest {
         super.setUpInternal();
         IniMongoProperties properties = new IniMongoProperties();
         String host = properties.get("mongo.host", String.class).or("localhost"); 
-        int port = properties.get("mongo.port", Integer.class).or(27017);
+        int port = properties.get("mongodb.port", Integer.class).or(27017);
         MongoClient client = new MongoClient(host, Integer.valueOf(port));
         DB db = client.getDB("geogit");
         db.dropDatabase();

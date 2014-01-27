@@ -15,30 +15,23 @@ import com.google.common.base.Objects;
  * @see MongoStagingDatabase
  */
 final class MongoAddress {
-    private final String host;
-    private final int port;
+    private final String uri;
 
-    public MongoAddress(String host, int port) {
-        this.host = host;
-        this.port = port;
+    public MongoAddress(String uri) {
+        this.uri = uri;
     }
 
-    public String getHost() {
-        return host;
-    }
-
-    public int getPort() {
-        return port;
+    public String getUri() {
+        return uri;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(host, port);
+        return Objects.hashCode(uri);
     }
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(MongoAddress.class).addValue(host)
-                .addValue(port).toString();
+        return Objects.toStringHelper(MongoAddress.class).addValue(uri).toString();
     }
 }

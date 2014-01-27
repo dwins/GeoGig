@@ -7,6 +7,7 @@ package org.geogit.storage.mongo;
 import java.net.UnknownHostException;
 import org.geogit.storage.ConnectionManager;
 import com.mongodb.MongoClient;
+import com.mongodb.MongoClientURI;
 
 /**
  * A connection manager for MongoDB-backed storage objects.
@@ -16,7 +17,8 @@ public final class MongoConnectionManager extends
     @Override
     protected MongoClient connect(MongoAddress address) {
         try {
-            return new MongoClient(address.getHost(), address.getPort());
+            MongoClientURI uri = new MongoClientURI(address.getUri());
+            return new MongoClient(uri);
         } catch (UnknownHostException e) {
             throw new RuntimeException(e);
         }
