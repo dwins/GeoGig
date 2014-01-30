@@ -59,9 +59,6 @@ public class RemoveOp extends AbstractGeoGitOp<WorkingTree> {
                 for (Conflict conflict : conflicts) {
                     getIndex().getDatabase().removeConflict(null, conflict.getPath());
                 }
-                if (!node.isPresent()) {
-                    pathsToRemove.remove(pathToRemove);
-                }
             } else {
                 Preconditions.checkArgument(node.isPresent(),
                         "pathspec '%s' did not match any feature or tree", pathToRemove);
@@ -73,6 +70,10 @@ public class RemoveOp extends AbstractGeoGitOp<WorkingTree> {
             Optional<NodeRef> node = command(FindTreeChild.class)
                     .setParent(getWorkTree().getTree()).setIndex(true).setChildPath(pathToRemove)
                     .call();
+            if (!node.isPresent()) {
+                continue;
+            }
+
             switch (node.get().getType()) {
             case TREE:
                 getWorkTree().delete(pathToRemove);

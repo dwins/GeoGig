@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nullable;
@@ -137,11 +138,13 @@ public class JEObjectDatabase extends AbstractObjectDatabase implements ObjectDa
 
         final File envHome = env.getHome();
         LOGGER.debug("Closing object database at {}", envHome);
-        writerService.shutdownNow();
+        writerService.shutdown();
+        waitForServiceShutDown(writerService);
         objectDb.close();
         objectDb = null;
         if (dbSyncService != null) {
-            dbSyncService.shutdownNow();
+            dbSyncService.shutdown();
+            waitForServiceShutDown(dbSyncService);
         }
         LOGGER.trace("ObjectDatabase closed. Closing environment...");
 
@@ -150,6 +153,16 @@ public class JEObjectDatabase extends AbstractObjectDatabase implements ObjectDa
         env.close();
         env = null;
         LOGGER.debug("Database {} closed.", envHome);
+    }
+
+    private void waitForServiceShutDown(ExecutorService service) {
+        try {
+            while (!service.isTerminated()) {
+                service.awaitTermination(100, TimeUnit.MILLISECONDS);
+            }
+        } catch (InterruptedException e) {
+            LOGGER.warn("Error waiting for service to finish", e);
+        }
     }
 
     @Override

@@ -4,9 +4,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 
-import org.geogit.geotools.data.ForwardingFeatureCollection;
-import org.geogit.geotools.data.ForwardingFeatureIterator;
-import org.geogit.geotools.data.ForwardingFeatureSource;
+import org.geogit.api.data.ForwardingFeatureCollection;
+import org.geogit.api.data.ForwardingFeatureIterator;
+import org.geogit.api.data.ForwardingFeatureSource;
 import org.geotools.data.FeatureSource;
 import org.geotools.data.Query;
 import org.geotools.feature.DecoratingFeature;

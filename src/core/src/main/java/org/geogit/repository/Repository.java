@@ -11,6 +11,7 @@ import org.geogit.api.CommandLocator;
 import org.geogit.api.Node;
 import org.geogit.api.NodeRef;
 import org.geogit.api.ObjectId;
+import org.geogit.api.Platform;
 import org.geogit.api.Ref;
 import org.geogit.api.RevCommit;
 import org.geogit.api.RevFeature;
@@ -340,5 +341,10 @@ public class Repository implements CommandLocator {
         Optional<Map<String, String>> sparseResult = command(ConfigOp.class)
                 .setAction(ConfigAction.CONFIG_GET).setName("sparse.filter").call();
         return sparseResult.isPresent();
+    }
+
+    @Override
+    public Platform getPlatform() {
+        return injector.getInstance(Platform.class);
     }
 }

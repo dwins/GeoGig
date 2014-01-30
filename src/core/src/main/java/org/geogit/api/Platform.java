@@ -49,4 +49,10 @@ public interface Platform {
      * @return the amount of time in milliseconds to add to UTC to get local time.
      */
     public int timeZoneOffset(long timeStamp);
+
+    /**
+     * @return the maximum number of processors available to the virtual machine; never smaller than
+     *         one, as in {@link Runtime#availableProcessors()}
+     */
+    public int availableProcessors();
 }

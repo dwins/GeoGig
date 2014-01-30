@@ -6,7 +6,10 @@
 package org.geogit.test.integration.repository;
 
 import static org.geogit.api.NodeRef.appendChild;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -14,20 +17,31 @@ import java.util.List;
 import org.geogit.api.Node;
 import org.geogit.api.NodeRef;
 import org.geogit.api.ObjectId;
+import org.geogit.api.Platform;
 import org.geogit.api.RevFeatureType;
 import org.geogit.api.RevTree;
+import org.geogit.api.TestPlatform;
+import org.geogit.api.data.ForwardingFeatureSource;
 import org.geogit.api.plumbing.FindTreeChild;
 import org.geogit.api.plumbing.diff.DiffEntry;
 import org.geogit.repository.WorkingTree;
 import org.geogit.test.integration.RepositoryTestCase;
+import org.geotools.data.DataUtilities;
+import org.geotools.data.FeatureSource;
+import org.geotools.data.Query;
+import org.geotools.data.QueryCapabilities;
+import org.geotools.data.memory.MemoryDataStore;
+import org.geotools.feature.FeatureCollection;
 import org.geotools.util.NullProgressListener;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.opengis.feature.Feature;
+import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.type.Name;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 
 /**
  *
@@ -40,6 +54,17 @@ public class WorkingTreeTest extends RepositoryTestCase {
 
     @Rule
     public ExpectedException exception = ExpectedException.none();
+
+    @Override
+    protected Platform createPlatform() {
+        Platform testPlatform = new TestPlatform(envHome) {
+            @Override
+            public int availableProcessors() {
+                return 2;
+            }
+        };
+        return testPlatform;
+    }
 
     @Override
     protected void setUpInternal() throws Exception {
@@ -142,6 +167,69 @@ public class WorkingTreeTest extends RepositoryTestCase {
         workTree.insert(pointsName, featureList.iterator(), LISTENER, targetList, -5);
     }
 
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @Test
+    public void testInsertNonPagingFeatureSource() throws Exception {
+        assertEquals(2, super.getGeogit().getPlatform().availableProcessors());
+
+        final List<SimpleFeature> features = ImmutableList.of((SimpleFeature) points1,
+                (SimpleFeature) points2, (SimpleFeature) points3);
+        MemoryDataStore store = new MemoryDataStore();
+        store.addFeatures(features);
+
+        final QueryCapabilities caps = mock(QueryCapabilities.class);
+        when(caps.isOffsetSupported()).thenReturn(true);
+
+        FeatureSource source = store.getFeatureSource(pointsName);
+        assertFalse(source.getQueryCapabilities().isOffsetSupported());
+
+        String treePath = "target_typename";
+        workTree.insert(treePath, source, Query.ALL, new NullProgressListener());
+
+        assertEquals(3, workTree.countUnstaged(treePath).getFeaturesCount());
+
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @Test
+    public void testInsertPagingFeatureSource() throws Exception {
+        assertEquals(2, super.getGeogit().getPlatform().availableProcessors());
+
+        final List<SimpleFeature> features = ImmutableList.of((SimpleFeature) points1,
+                (SimpleFeature) points2, (SimpleFeature) points3);
+        MemoryDataStore store = new MemoryDataStore();
+        store.addFeatures(features);
+
+        final QueryCapabilities caps = mock(QueryCapabilities.class);
+        when(caps.isOffsetSupported()).thenReturn(true);
+
+        FeatureSource source = new ForwardingFeatureSource(store.getFeatureSource(pointsName)) {
+            @Override
+            public QueryCapabilities getQueryCapabilities() {
+                return caps;
+            }
+
+            @Override
+            public FeatureCollection getFeatures(Query query) throws IOException {
+                Integer startIndex = query.getStartIndex();
+                if (startIndex == null) {
+                    return super.getFeatures();
+                }
+                int toIndex = (int) Math.min((long) startIndex + query.getMaxFeatures(),
+                        features.size());
+                List<SimpleFeature> result = features.subList(startIndex, toIndex);
+                return DataUtilities.collection(result);
+            }
+        };
+
+        assertTrue(source.getQueryCapabilities().isOffsetSupported());
+
+        String treePath = "target_typename";
+        workTree.insert(treePath, source, Query.ALL, new NullProgressListener());
+
+        assertEquals(3, workTree.countUnstaged(treePath).getFeaturesCount());
+    }
+
     @Test
     public void testInsertCollectionNoTarget() throws Exception {
         List<Feature> featureList = new LinkedList<Feature>();
@@ -193,7 +281,6 @@ public class WorkingTreeTest extends RepositoryTestCase {
         workTree.update(pointsName, modifiedFeatures.iterator(), LISTENER, 1);
         assertFalse(workTree.findUnstaged(appendChild(pointsName, idP1)).get().getObjectId()
                 .equals(oID1));
-
     }
 
     @Test

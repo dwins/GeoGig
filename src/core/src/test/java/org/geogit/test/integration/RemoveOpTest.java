@@ -20,6 +20,7 @@ import org.geogit.api.porcelain.AddOp;
 import org.geogit.api.porcelain.BranchCreateOp;
 import org.geogit.api.porcelain.CheckoutOp;
 import org.geogit.api.porcelain.CommitOp;
+import org.geogit.api.porcelain.MergeConflictsException;
 import org.geogit.api.porcelain.MergeOp;
 import org.geogit.api.porcelain.RemoveOp;
 import org.geogit.api.porcelain.ResetOp;
@@ -128,7 +129,7 @@ public class RemoveOpTest extends RepositoryTestCase {
             geogit.command(MergeOp.class).addCommit(Suppliers.ofInstance(branch.getObjectId()))
                     .call();
             fail();
-        } catch (IllegalStateException e) {
+        } catch (MergeConflictsException e) {
             assertTrue(e.getMessage().contains("conflict"));
         }
         String path = NodeRef.appendChild(pointsName, idP1);

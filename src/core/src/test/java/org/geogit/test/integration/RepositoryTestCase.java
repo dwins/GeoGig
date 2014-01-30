@@ -203,9 +203,14 @@ public abstract class RepositoryTestCase extends Assert {
     }
 
     protected Injector createInjector() {
-        Platform testPlatform = new TestPlatform(envHome);
+        Platform testPlatform = createPlatform();
         GlobalInjectorBuilder.builder = new TestInjectorBuilder(testPlatform);
         return GlobalInjectorBuilder.builder.build();
+    }
+
+    protected Platform createPlatform() {
+        Platform testPlatform = new TestPlatform(envHome);
+        return testPlatform;
     }
 
     @After

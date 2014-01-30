@@ -73,4 +73,9 @@ public class DefaultPlatform implements Platform {
         return System.nanoTime();
     }
 
+    @Override
+    public int availableProcessors() {
+        return Runtime.getRuntime().availableProcessors();
+    }
+
 }

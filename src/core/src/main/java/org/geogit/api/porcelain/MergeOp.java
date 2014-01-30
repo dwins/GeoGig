@@ -245,7 +245,7 @@ public class MergeOp extends AbstractGeoGitOp<MergeOp.MergeReport> {
                     sb.append("CONFLICT: Merge conflict in " + conflict.getPath() + "\n");
                 }
                 sb.append("Automatic merge failed. Fix conflicts and then commit the result.\n");
-                throw new IllegalStateException(sb.toString());
+                throw new MergeConflictsException(sb.toString(), headCommit.getId(), commitId);
 
             }
         } else {

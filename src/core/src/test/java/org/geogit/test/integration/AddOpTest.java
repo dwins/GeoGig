@@ -19,6 +19,7 @@ import org.geogit.api.porcelain.AddOp;
 import org.geogit.api.porcelain.BranchCreateOp;
 import org.geogit.api.porcelain.CheckoutOp;
 import org.geogit.api.porcelain.CommitOp;
+import org.geogit.api.porcelain.MergeConflictsException;
 import org.geogit.api.porcelain.MergeOp;
 import org.junit.Test;
 import org.opengis.feature.Feature;
@@ -172,7 +173,7 @@ public class AddOpTest extends RepositoryTestCase {
             geogit.command(MergeOp.class).addCommit(Suppliers.ofInstance(branch.getObjectId()))
                     .call();
             fail();
-        } catch (IllegalStateException e) {
+        } catch (MergeConflictsException e) {
             assertTrue(e.getMessage().contains("conflict"));
         }
         insert(points1);
@@ -207,7 +208,7 @@ public class AddOpTest extends RepositoryTestCase {
             geogit.command(MergeOp.class).addCommit(Suppliers.ofInstance(branch.getObjectId()))
                     .call();
             fail();
-        } catch (IllegalStateException e) {
+        } catch (MergeConflictsException e) {
             assertTrue(true);
         }
         geogit.command(AddOp.class).call();

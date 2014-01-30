@@ -19,6 +19,7 @@ import org.geogit.api.plumbing.diff.DiffEntry;
 import org.geogit.api.plumbing.merge.MergeScenarioReport;
 import org.geogit.api.plumbing.merge.ReportMergeScenarioOp;
 import org.geogit.api.porcelain.DiffOp;
+import org.geogit.api.porcelain.MergeConflictsException;
 import org.geogit.api.porcelain.PullOp;
 import org.geogit.api.porcelain.PullResult;
 import org.geogit.api.porcelain.SynchronizationException;
@@ -133,7 +134,7 @@ public class PullWebOp extends AbstractWebAPICommand {
                 context.setResponseContent(CommandResponse
                         .error("Unable to pull, the remote history is shallow."));
             }
-        } catch (IllegalStateException e) {
+        } catch (MergeConflictsException e) {
             String[] refs = refSpec.split(":");
             String remoteRef = Ref.REMOTES_PREFIX + remoteName + "/" + refs[0];
             Optional<Ref> sourceRef = geogit.command(RefParse.class).setName(remoteRef).call();

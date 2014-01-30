@@ -40,6 +40,7 @@ import org.geogit.api.plumbing.diff.PatchSerializer;
 import org.geogit.api.porcelain.BranchCreateOp;
 import org.geogit.api.porcelain.CheckoutOp;
 import org.geogit.api.porcelain.CommitOp;
+import org.geogit.api.porcelain.MergeConflictsException;
 import org.geogit.api.porcelain.MergeOp;
 import org.geogit.repository.WorkingTree;
 import org.junit.Rule;
@@ -196,7 +197,7 @@ public class InitSteps extends AbstractGeogitFunctionalTest {
             geogit.command(MergeOp.class).addCommit(Suppliers.ofInstance(branch.getObjectId()))
                     .call();
             fail();
-        } catch (IllegalStateException e) {
+        } catch (MergeConflictsException e) {
         }
     }
 

@@ -14,8 +14,10 @@ import org.geogit.api.GeogitTransaction;
 import org.geogit.api.Ref;
 import org.geogit.api.SymRef;
 import org.geogit.api.porcelain.CheckoutOp;
+import org.geogit.api.porcelain.MergeConflictsException;
 import org.geogit.api.porcelain.MergeOp;
 import org.geogit.api.porcelain.NothingToCommitException;
+import org.geogit.api.porcelain.RebaseConflictsException;
 import org.geogit.api.porcelain.RebaseOp;
 
 import com.google.common.base.Optional;
@@ -71,11 +73,20 @@ public class TransactionEnd extends AbstractGeoGitOp<Boolean> {
         return this;
     }
 
+    /**
+     * @param rebase use rebase instead of merge when completing the transaction
+     * @return {@code this}
+     */
     public TransactionEnd setRebase(boolean rebase) {
         this.rebase = rebase;
         return this;
     }
 
+    /**
+     * @param authorName the author of the transaction to use for merge commits
+     * @param authorEmail the email of the transaction author to use for merge commits
+     * @return {@code this}
+     */
     public TransactionEnd setAuthor(@Nullable String authorName, @Nullable String authorEmail) {
         this.authorName = Optional.fromNullable(authorName);
         this.authorEmail = Optional.fromNullable(authorEmail);
@@ -122,9 +133,15 @@ public class TransactionEnd extends AbstractGeoGitOp<Boolean> {
                             // Try to rebase
                             transaction.command(CheckoutOp.class).setSource(ref.getName())
                                     .setForce(true).call();
-                            transaction.command(RebaseOp.class)
-                                    .setUpstream(Suppliers.ofInstance(repoRef.get().getObjectId()))
-                                    .call();
+                            try {
+                                transaction
+                                        .command(RebaseOp.class)
+                                        .setUpstream(
+                                                Suppliers.ofInstance(repoRef.get().getObjectId()))
+                                        .call();
+                            } catch (RebaseConflictsException e) {
+                                Throwables.propagate(e);
+                            }
                             updatedRef = transaction.command(RefParse.class).setName(ref.getName())
                                     .call().get();
                         } else {
@@ -132,12 +149,15 @@ public class TransactionEnd extends AbstractGeoGitOp<Boolean> {
                             transaction.command(CheckoutOp.class).setSource(ref.getName())
                                     .setForce(true).call();
                             try {
-                            transaction.command(MergeOp.class)
-                                    .setAuthor(authorName.orNull(), authorEmail.orNull())
-                                    .addCommit(Suppliers.ofInstance(repoRef.get().getObjectId()))
-                                    .setTheirs(true).call();
+                                transaction
+                                        .command(MergeOp.class)
+                                        .setAuthor(authorName.orNull(), authorEmail.orNull())
+                                        .addCommit(
+                                                Suppliers.ofInstance(repoRef.get().getObjectId()))
+                                        .call();
                             } catch (NothingToCommitException e) {
-                            	// The repo commit is already in our history, this is a fast forward.
+                                // The repo commit is already in our history, this is a fast
+                                // forward.
                             }
                             updatedRef = transaction.command(RefParse.class).setName(ref.getName())
                                     .call().get();

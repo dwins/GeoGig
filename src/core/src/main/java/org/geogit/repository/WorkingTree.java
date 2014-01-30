@@ -24,6 +24,7 @@ import org.geogit.api.FeatureBuilder;
 import org.geogit.api.Node;
 import org.geogit.api.NodeRef;
 import org.geogit.api.ObjectId;
+import org.geogit.api.Platform;
 import org.geogit.api.Ref;
 import org.geogit.api.RevFeature;
 import org.geogit.api.RevFeatureBuilder;
@@ -460,7 +461,9 @@ public class WorkingTree {
             // only on offset being supported
             boolean supportsPaging = source.getQueryCapabilities().isOffsetSupported();
             if (supportsPaging) {
-                nFetchThreads = Math.max(2, Runtime.getRuntime().availableProcessors() / 2);
+                Platform platform = commandLocator.getPlatform();
+                int availableProcessors = platform.availableProcessors();
+                nFetchThreads = Math.max(2, availableProcessors / 2);
             } else {
                 nFetchThreads = 1;
             }
@@ -536,6 +539,7 @@ public class WorkingTree {
             final @Nullable Long collectionSize, int nTasks, RevTreeBuilder2 builder) {
 
         int partitionSize = 0;
+        int lastTaskPartitionSize = 0;
         BulkOpListener bulkOpListener;
         if (collectionSize == null) {
             nTasks = 1;
@@ -544,6 +548,7 @@ public class WorkingTree {
         } else {
             final int total = collectionSize.intValue();
             partitionSize = total / nTasks;
+            lastTaskPartitionSize = partitionSize + (total % nTasks);
             bulkOpListener = new BulkOpListener() {
                 int inserted = 0;
 
@@ -559,7 +564,10 @@ public class WorkingTree {
         for (int i = 0; i < nTasks; i++) {
             int offset = i * partitionSize;
             int limit = partitionSize;
-
+            if (i == nTasks - 1) {
+                limit = lastTaskPartitionSize;// let the last task take any remaining
+                                              // feature
+            }
             results.add(executorService.submit(new BlobInsertTask(source, offset, limit,
                     bulkOpListener, builder)));
         }

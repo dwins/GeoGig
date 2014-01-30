@@ -18,6 +18,7 @@ import org.geogit.api.plumbing.diff.DiffEntry;
 import org.geogit.api.porcelain.AddOp;
 import org.geogit.api.porcelain.CheckoutOp;
 import org.geogit.api.porcelain.CommitOp;
+import org.geogit.api.porcelain.ConflictsException;
 import org.geogit.api.porcelain.NothingToCommitException;
 import org.geotools.data.Transaction;
 import org.geotools.data.Transaction.State;
@@ -121,7 +122,12 @@ class GeogitTransactionState implements State {
             // ok
         }
 
-        this.geogitTx.setAuthor(author, email.orNull()).commit();
+        try {
+            this.geogitTx.setAuthor(author, email.orNull()).commit();
+        } catch (ConflictsException e) {
+            // TODO: how should this be handled?
+            this.geogitTx.abort();
+        }
 
         this.geogitTx = null;
     }

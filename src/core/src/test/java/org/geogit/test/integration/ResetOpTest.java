@@ -18,6 +18,7 @@ import org.geogit.api.porcelain.CheckoutOp;
 import org.geogit.api.porcelain.CommitOp;
 import org.geogit.api.porcelain.ConfigOp;
 import org.geogit.api.porcelain.ConfigOp.ConfigAction;
+import org.geogit.api.porcelain.MergeConflictsException;
 import org.geogit.api.porcelain.MergeOp;
 import org.geogit.api.porcelain.ResetOp;
 import org.geogit.api.porcelain.ResetOp.ResetMode;
@@ -338,7 +339,7 @@ public class ResetOpTest extends RepositoryTestCase {
             geogit.command(MergeOp.class).addCommit(Suppliers.ofInstance(branch.getObjectId()))
                     .call();
             fail();
-        } catch (IllegalStateException e) {
+        } catch (MergeConflictsException e) {
             assertTrue(e.getMessage().contains("conflict"));
         }
 
@@ -373,7 +374,7 @@ public class ResetOpTest extends RepositoryTestCase {
             geogit.command(MergeOp.class).addCommit(Suppliers.ofInstance(branch.getObjectId()))
                     .call();
             fail();
-        } catch (IllegalStateException e) {
+        } catch (MergeConflictsException e) {
             assertTrue(e.getMessage().contains("conflict"));
         }
 
@@ -406,7 +407,7 @@ public class ResetOpTest extends RepositoryTestCase {
             geogit.command(MergeOp.class).addCommit(Suppliers.ofInstance(branch.getObjectId()))
                     .call();
             fail();
-        } catch (IllegalStateException e) {
+        } catch (MergeConflictsException e) {
             assertTrue(e.getMessage().contains("conflict"));
         }
 

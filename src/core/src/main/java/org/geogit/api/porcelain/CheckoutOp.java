@@ -161,40 +161,47 @@ public class CheckoutOp extends AbstractGeoGitOp<CheckoutResult> {
                 Optional<NodeRef> node = command(FindTreeChild.class).setParent(tree.get())
                         .setIndex(true).setChildPath(st).call();
 
-                checkState(node.isPresent(), "pathspec '" + st
-                        + "' didn't match a feature in the tree");
-                if (node.get().getType() == TYPE.TREE) {
-                    RevTreeBuilder treeBuilder = new RevTreeBuilder(getIndex().getDatabase(),
-                            getWorkTree().getTree());
-                    treeBuilder.remove(st);
-                    treeBuilder.put(node.get().getNode());
-                    RevTree newRoot = treeBuilder.build();
-                    getIndex().getDatabase().put(newRoot);
-                    getWorkTree().updateWorkHead(newRoot.getId());
+                if ((ours || theirs) && !node.isPresent()) {
+                    // remove the node.
+                    command(RemoveOp.class).addPathToRemove(st).call();
                 } else {
+                    checkState(node.isPresent(), "pathspec '" + st
+                            + "' didn't match a feature in the tree");
 
-                    ObjectId metadataId = ObjectId.NULL;
-                    Optional<NodeRef> parentNode = command(FindTreeChild.class)
-                            .setParent(getWorkTree().getTree())
-                            .setChildPath(node.get().getParentPath()).setIndex(true).call();
-                    RevTreeBuilder treeBuilder = null;
-                    if (parentNode.isPresent()) {
-                        metadataId = parentNode.get().getMetadataId();
-                        Optional<RevTree> parsed = command(RevObjectParse.class).setObjectId(
-                                parentNode.get().getNode().getObjectId()).call(RevTree.class);
-                        checkState(parsed.isPresent(),
-                                "Parent tree couldn't be found in the repository.");
-                        treeBuilder = new RevTreeBuilder(getIndex().getDatabase(), parsed.get());
-                        treeBuilder.remove(node.get().getNode().getName());
+                    if (node.get().getType() == TYPE.TREE) {
+                        RevTreeBuilder treeBuilder = new RevTreeBuilder(getIndex().getDatabase(),
+                                getWorkTree().getTree());
+                        treeBuilder.remove(st);
+                        treeBuilder.put(node.get().getNode());
+                        RevTree newRoot = treeBuilder.build();
+                        getIndex().getDatabase().put(newRoot);
+                        getWorkTree().updateWorkHead(newRoot.getId());
                     } else {
-                        treeBuilder = new RevTreeBuilder(getIndex().getDatabase());
+
+                        ObjectId metadataId = ObjectId.NULL;
+                        Optional<NodeRef> parentNode = command(FindTreeChild.class)
+                                .setParent(getWorkTree().getTree())
+                                .setChildPath(node.get().getParentPath()).setIndex(true).call();
+                        RevTreeBuilder treeBuilder = null;
+                        if (parentNode.isPresent()) {
+                            metadataId = parentNode.get().getMetadataId();
+                            Optional<RevTree> parsed = command(RevObjectParse.class).setObjectId(
+                                    parentNode.get().getNode().getObjectId()).call(RevTree.class);
+                            checkState(parsed.isPresent(),
+                                    "Parent tree couldn't be found in the repository.");
+                            treeBuilder = new RevTreeBuilder(getIndex().getDatabase(), parsed.get());
+                            treeBuilder.remove(node.get().getNode().getName());
+                        } else {
+                            treeBuilder = new RevTreeBuilder(getIndex().getDatabase());
+                        }
+                        treeBuilder.put(node.get().getNode());
+                        ObjectId newTreeId = command(WriteBack.class)
+                                .setAncestor(
+                                        getWorkTree().getTree().builder(getIndex().getDatabase()))
+                                .setChildPath(node.get().getParentPath()).setToIndex(true)
+                                .setTree(treeBuilder.build()).setMetadataId(metadataId).call();
+                        getWorkTree().updateWorkHead(newTreeId);
                     }
-                    treeBuilder.put(node.get().getNode());
-                    ObjectId newTreeId = command(WriteBack.class)
-                            .setAncestor(getWorkTree().getTree().builder(getIndex().getDatabase()))
-                            .setChildPath(node.get().getParentPath()).setToIndex(true)
-                            .setTree(treeBuilder.build()).setMetadataId(metadataId).call();
-                    getWorkTree().updateWorkHead(newTreeId);
                 }
             }
 

@@ -2,7 +2,7 @@
  * This code is licensed under the BSD New License, available at the root
  * application directory.
  */
-package org.geogit.geotools.data;
+package org.geogit.api.data;
 
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.collection.DecoratingFeatureIterator;

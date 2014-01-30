@@ -26,7 +26,9 @@ import org.geogit.api.porcelain.CheckoutResult;
 import org.geogit.api.porcelain.CommitOp;
 import org.geogit.api.porcelain.ConfigOp;
 import org.geogit.api.porcelain.ConfigOp.ConfigAction;
+import org.geogit.api.porcelain.MergeConflictsException;
 import org.geogit.api.porcelain.MergeOp;
+import org.geogit.api.porcelain.RemoveOp;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -414,6 +416,18 @@ public class CheckoutOpTest extends RepositoryTestCase {
     }
 
     @Test
+    public void testCheckoutOursDeleted() throws Exception {
+        createDeleteOursConflictedState();
+        String path = NodeRef.appendChild(pointsName, idP1);
+        geogit.command(CheckoutOp.class).addPath(path).setOurs(true).call();
+        Optional<Node> node = geogit.getRepository().getIndex().findStaged(path);
+        assertFalse(node.isPresent());
+        String headPath = Ref.HEAD + ":" + path;
+        Optional<ObjectId> id = geogit.command(RevParse.class).setRefSpec(headPath).call();
+        assertFalse(id.isPresent());
+    }
+
+    @Test
     public void testCheckoutTheirs() throws Exception {
         createConflictedState();
         String path = NodeRef.appendChild(pointsName, idP1);
@@ -422,6 +436,18 @@ public class CheckoutOpTest extends RepositoryTestCase {
         String headPath = Ref.MERGE_HEAD + ":" + path;
         Optional<ObjectId> id = geogit.command(RevParse.class).setRefSpec(headPath).call();
         assertEquals(id.get(), node.get().getObjectId());
+    }
+
+    @Test
+    public void testCheckoutTheirsDeleted() throws Exception {
+        createDeleteTheirsConflictedState();
+        String path = NodeRef.appendChild(pointsName, idP1);
+        geogit.command(CheckoutOp.class).addPath(path).setTheirs(true).call();
+        Optional<Node> node = geogit.getRepository().getIndex().findStaged(path);
+        assertFalse(node.isPresent());
+        String headPath = Ref.MERGE_HEAD + ":" + path;
+        Optional<ObjectId> id = geogit.command(RevParse.class).setRefSpec(headPath).call();
+        assertFalse(id.isPresent());
     }
 
     private void createConflictedState() throws Exception {
@@ -449,7 +475,69 @@ public class CheckoutOpTest extends RepositoryTestCase {
             geogit.command(MergeOp.class).addCommit(Suppliers.ofInstance(branch.getObjectId()))
                     .call();
             fail();
-        } catch (IllegalStateException e) {
+        } catch (MergeConflictsException e) {
+            assertTrue(e.getMessage().contains("conflict"));
+        }
+    }
+
+    private void createDeleteTheirsConflictedState() throws Exception {
+        // Create the following revision graph
+        // o
+        // |
+        // o - Points 1 added
+        // |\
+        // | o - TestBranch - Points 1 deleted and points 2 added
+        // |
+        // o - master - HEAD - Points 1 modified
+        insertAndAdd(points1);
+        geogit.command(CommitOp.class).call();
+        geogit.command(BranchCreateOp.class).setName("TestBranch").call();
+        insertAndAdd(points1Modified);
+        geogit.command(CommitOp.class).call();
+        geogit.command(CheckoutOp.class).setSource("TestBranch").call();
+        geogit.command(RemoveOp.class).addPathToRemove(NodeRef.appendChild(pointsName, idP1))
+                .call();
+        insertAndAdd(points2);
+        geogit.command(CommitOp.class).call();
+
+        geogit.command(CheckoutOp.class).setSource("master").call();
+        Ref branch = geogit.command(RefParse.class).setName("TestBranch").call().get();
+        try {
+            geogit.command(MergeOp.class).addCommit(Suppliers.ofInstance(branch.getObjectId()))
+                    .call();
+            fail();
+        } catch (MergeConflictsException e) {
+            assertTrue(e.getMessage().contains("conflict"));
+        }
+    }
+
+    private void createDeleteOursConflictedState() throws Exception {
+        // Create the following revision graph
+        // o
+        // |
+        // o - Points 1 added
+        // |\
+        // | o - TestBranch - Points 1 deleted and points 2 added
+        // |
+        // o - master - HEAD - Points 1 modified
+        insertAndAdd(points1);
+        geogit.command(CommitOp.class).call();
+        geogit.command(BranchCreateOp.class).setName("TestBranch").call();
+        geogit.command(RemoveOp.class).addPathToRemove(NodeRef.appendChild(pointsName, idP1))
+                .call();
+        geogit.command(CommitOp.class).call();
+        geogit.command(CheckoutOp.class).setSource("TestBranch").call();
+        insertAndAdd(points1ModifiedB);
+        insertAndAdd(points2);
+        geogit.command(CommitOp.class).call();
+
+        geogit.command(CheckoutOp.class).setSource("master").call();
+        Ref branch = geogit.command(RefParse.class).setName("TestBranch").call().get();
+        try {
+            geogit.command(MergeOp.class).addCommit(Suppliers.ofInstance(branch.getObjectId()))
+                    .call();
+            fail();
+        } catch (MergeConflictsException e) {
             assertTrue(e.getMessage().contains("conflict"));
         }
     }

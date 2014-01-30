@@ -33,4 +33,6 @@ public interface CommandLocator {
      * @return
      */
     public RefDatabase getRefDatabase();
+    
+    public Platform getPlatform();
 }

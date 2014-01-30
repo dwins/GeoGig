@@ -7,6 +7,7 @@ package org.geogit.di;
 
 import org.geogit.api.AbstractGeoGitOp;
 import org.geogit.api.CommandLocator;
+import org.geogit.api.Platform;
 import org.geogit.repository.StagingArea;
 import org.geogit.repository.WorkingTree;
 import org.geogit.storage.RefDatabase;
@@ -59,5 +60,10 @@ public class GuiceCommandLocator implements CommandLocator {
     @Override
     public RefDatabase getRefDatabase() {
         return injector.getInstance(RefDatabase.class);
+    }
+
+    @Override
+    public Platform getPlatform() {
+        return injector.getInstance(Platform.class);
     }
 }

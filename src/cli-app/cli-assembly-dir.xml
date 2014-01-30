@@ -23,11 +23,21 @@
             <fileMode>0755</fileMode>
         </file>
         <file>
+            <source>target/geogit-build/bin/geogit-gateway</source>
+            <outputDirectory>bin</outputDirectory>
+            <destName>geogit-gateway</destName>
+            <fileMode>0755</fileMode>
+        </file>
+        <file>
             <source>target/geogit-build/bin/geogit.bat</source>
             <outputDirectory>bin</outputDirectory>
         </file>
         <file>
             <source>target/geogit-build/bin/geogit-console.bat</source>
+            <outputDirectory>bin</outputDirectory>
+        </file>
+        <file>
+            <source>target/geogit-build/bin/geogit-gateway.bat</source>
             <outputDirectory>bin</outputDirectory>
         </file>
         <file>
