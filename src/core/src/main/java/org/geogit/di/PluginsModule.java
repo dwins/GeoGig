@@ -25,16 +25,18 @@ public class PluginsModule extends GeogitModule {
 
         @Override
         protected final VersionedFormat readConfig(ConfigDatabase config) {
+            String format = null, version = null;
             try {
-            final String format = config.get("storage.objects").orNull();
-            final String version = config.get(format + ".version").orNull();
+                format = config.get("storage.objects").orNull();
+                version = config.get(format + ".version").orNull();
+            } catch (RuntimeException e) {
+                // ignore, the config may not be available when we need this.
+            }
             if (format == null || version == null) {
-                return defaults.getObjects();
+                // .get, not .orNull. we should only be using the plugin providers when there are plugins set up
+                return defaults.getObjects().get();
             } else {
                 return new VersionedFormat(format, version);
-            }
-            } catch (RuntimeException e) {
-                return defaults.getObjects();
             }
         }
 
@@ -50,16 +52,19 @@ public class PluginsModule extends GeogitModule {
 
         @Override
         protected final VersionedFormat readConfig(ConfigDatabase config) {
+            String format = null, version = null;
             try {
-                final String format = config.get("storage.staging").orNull();
-                final String version = config.get(format + ".version").orNull();
-                if (format == null || version == null) {
-                    return defaults.getStaging();
-                } else {
-                    return new VersionedFormat(format, version);
-                }
+                format = config.get("storage.staging").orNull();
+                version = config.get(format + ".version").orNull();
             } catch (RuntimeException e) {
-                return defaults.getStaging();
+                // ignore, the config may not be available when we need this
+            }
+
+            if (format == null || version == null) {
+                // .get, not .orNull. we should only be using the plugin providers when there are plugins set up
+                return defaults.getStaging().get();
+            } else {
+                return new VersionedFormat(format, version);
             }
         }
 
@@ -75,16 +80,19 @@ public class PluginsModule extends GeogitModule {
 
         @Override
         protected final VersionedFormat readConfig(ConfigDatabase config) {
+            String format = null, version = null;
             try {
-                final String format = config.get("storage.refs").orNull();
-                final String version = config.get(format + ".version").orNull();
-                if (format == null || version == null) {
-                    return defaults.getRefs();
-                } else {
-                    return new VersionedFormat(format, version);
-                }
+                format = config.get("storage.refs").orNull();
+                version = config.get(format + ".version").orNull();
             } catch (RuntimeException e) {
-                return defaults.getRefs();
+                // ignore, the config may not be available when we need this.
+            }
+
+            if (format == null || version == null) {
+                // .get, not .orNull. we should only be using the plugin providers when there are plugins set up
+                return defaults.getRefs().get();
+            } else {
+                return new VersionedFormat(format, version);
             }
         }
 
@@ -100,16 +108,19 @@ public class PluginsModule extends GeogitModule {
 
         @Override
         protected final VersionedFormat readConfig(ConfigDatabase config) {
+            String format = null, version = null;
             try {
-                final String format = config.get("storage.graph").orNull();
-                final String version = config.get(format + ".version").orNull();
-                if (format == null || version == null) {
-                    return defaults.getGraph();
-                } else {
-                    return new VersionedFormat(format, version);
-                }
+                format = config.get("storage.graph").orNull();
+                version = config.get(format + ".version").orNull();
             } catch (RuntimeException e) {
-                return defaults.getGraph();
+                // ignore, the config may not be available when we need this
+            }
+
+            if (format == null || version == null) {
+                // .get, not .orNull. we should only be using the plugin providers when there are plugins set up
+                return defaults.getGraph().get();
+            } else {
+                return new VersionedFormat(format, version);
             }
         }
 

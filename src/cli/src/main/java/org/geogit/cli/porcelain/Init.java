@@ -21,10 +21,13 @@ import org.geogit.cli.CommandFailedException;
 import org.geogit.cli.GeogitCLI;
 import org.geogit.cli.InvalidParameterException;
 import org.geogit.cli.RequiresRepository;
+import org.geogit.di.PluginDefaults;
+import org.geogit.di.VersionedFormat;
 import org.geogit.repository.Repository;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -51,16 +54,46 @@ public class Init extends AbstractCommand implements CLICommand {
     @Parameter(names={ "-c", "--config" }, description = "Configuration options for new repository", required = false, variableArity=true)
     private List<String> configuration;
 
-    private final static List<String> defaultConfiguration =
-        ImmutableList.of(
-                "storage.graph", "tinkergraph",
-                "tinkergraph.version", "0.1",
-                "storage.objects", "bdbje",
-                "storage.staging", "bdbje",
-                "bdbje.version", "0.1",
-                "storage.refs", "file",
-                "file.version", "1.0");
+//    private final static List<String> defaultConfiguration =
+//        ImmutableList.of(
+//                "storage.graph", "tinkergraph",
+//                "tinkergraph.version", "0.1",
+//                "storage.objects", "bdbje",
+//                "storage.staging", "bdbje",
+//                "bdbje.version", "0.1",
+//                "storage.refs", "file",
+//                "file.version", "1.0");
 
+    private void addDefaults(PluginDefaults defaults, ImmutableList.Builder<String> builder) {
+        Optional<VersionedFormat> refs = defaults.getRefs();
+        Optional<VersionedFormat> objects = defaults.getObjects();
+        Optional<VersionedFormat> staging = defaults.getStaging();
+        Optional<VersionedFormat> graph = defaults.getGraph();
+        if (refs.isPresent()) {
+            builder.add("storage.refs");
+            builder.add(refs.get().getFormat());
+            builder.add(refs.get().getFormat() + ".version");
+            builder.add(refs.get().getVersion());
+        }
+        if (objects.isPresent()) {
+            builder.add("storage.objects");
+            builder.add(objects.get().getFormat());
+            builder.add(objects.get().getFormat() + ".version");
+            builder.add(objects.get().getVersion());
+        }
+        if (staging.isPresent()) {
+            builder.add("storage.staging");
+            builder.add(staging.get().getFormat());
+            builder.add(staging.get().getFormat() + ".version");
+            builder.add(staging.get().getVersion());
+        }
+        if (graph.isPresent()) {
+            builder.add("storage.graph");
+            builder.add(graph.get().getFormat());
+            builder.add(graph.get().getFormat() + ".version");
+            builder.add(graph.get().getVersion());
+        }
+    }
     /**
      * Executes the init command.
      */
@@ -97,7 +130,7 @@ public class Init extends AbstractCommand implements CLICommand {
         }
 
         ImmutableList.Builder<String> builder = ImmutableList.builder();
-        builder.addAll(defaultConfiguration);
+        addDefaults(cli.getGeogitInjector().getInstance(PluginDefaults.class), builder);
         if (configuration != null) builder.addAll(configuration);
         List<String> effectiveConfiguration = builder.build();
 

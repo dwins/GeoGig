@@ -11,6 +11,14 @@ public final class VersionedFormat {
         this.version = version;
     }
 
+    public String getVersion() {
+        return version;
+    }
+
+    public String getFormat() {
+        return format;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o instanceof VersionedFormat) {

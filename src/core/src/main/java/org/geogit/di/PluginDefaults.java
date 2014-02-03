@@ -1,28 +1,36 @@
 package org.geogit.di;
 
-public final class PluginDefaults {
-    private final VersionedFormat refs, objects, staging, graph;
+import com.google.common.base.Optional;
 
-    public PluginDefaults(VersionedFormat objects, VersionedFormat staging, VersionedFormat refs, VersionedFormat graph) {
-        this.refs = refs;
-        this.objects = objects;
-        this.staging = staging;
-        this.graph = graph;
+public final class PluginDefaults {
+    private final Optional<VersionedFormat> refs, objects, staging, graph;
+
+    public PluginDefaults() {
+        refs = objects = staging = graph = Optional.absent();
     }
 
-    public VersionedFormat getRefs() {
+    public PluginDefaults(VersionedFormat objects, VersionedFormat staging, VersionedFormat refs, VersionedFormat graph) {
+        this.refs = Optional.of(refs);
+        this.objects = Optional.of(objects);
+        this.staging = Optional.of(staging);
+        this.graph = Optional.of(graph);
+    }
+
+    public Optional<VersionedFormat> getRefs() {
         return refs;
     }
 
-    public VersionedFormat getObjects() {
+    public Optional<VersionedFormat> getObjects() {
         return objects;
     }
 
-    public VersionedFormat getStaging() {
+    public Optional<VersionedFormat> getStaging() {
         return staging;
     }
 
-    public VersionedFormat getGraph() {
+    public Optional<VersionedFormat> getGraph() {
         return graph;
     }
+
+    public static final PluginDefaults NO_PLUGINS = new PluginDefaults();
 }
