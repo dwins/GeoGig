@@ -43,7 +43,6 @@ public class CLIInjectorBuilder extends InjectorBuilder {
     @Override
     public Injector build() {
         return Guice.createInjector(Modules.override(new GeogitModule(), new CachingModule()).with(new MetricsModule(),
-                    // new JEStorageModule(), new BlueprintsGraphModule()));
                     new PluginsModule(), new DefaultPlugins()));
     }
 

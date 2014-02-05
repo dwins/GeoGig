@@ -295,32 +295,64 @@ public class ImportOp extends AbstractGeoGitOp<RevTree> {
                         final String fidPrefix = featureType.getName().getLocalPart() + ".";
 
                         FeatureIterator iterator = delegate.features();
-                        return new FidPrefixRemovingIterator(iterator, fidPrefix);
+
+                        return new FidAndFtReplacerIterator(iterator, fidAttribute, fidPrefix,
+                                (SimpleFeatureType) featureType);
                     }
                 };
             }
         };
     }
 
-    private static class FidPrefixRemovingIterator extends ForwardingFeatureIterator<SimpleFeature> {
+    /**
+     * Replaces the default geotools fid with the string representation of the value of an
+     * attribute.
+     * 
+     * If the specified attribute is null, does not exist or the value is null, an fid is created by
+     * taking the default fid and removing the specified fidPrefix prefix from it.
+     * 
+     * It also replaces the feature type. This is used to avoid identical feature types (in terms of
+     * attributes) coming from different data sources (such as to shapefiles with different names)
+     * being considered different for having a different name. It is used in this importer class to
+     * decorate the name of the feature type when importing into a given tree, using the name of the
+     * tree.
+     * 
+     * The passed feature type should have the same attribute descriptions as the one to replace,
+     * but no checking is performed to ensure that
+     * 
+     */
+    private static class FidAndFtReplacerIterator extends ForwardingFeatureIterator<SimpleFeature> {
 
         private final String fidPrefix;
 
-        public FidPrefixRemovingIterator(FeatureIterator iterator, String fidPrefix) {
+        private String attributeName;
+
+        private SimpleFeatureType featureType;
+
+        public FidAndFtReplacerIterator(FeatureIterator iterator, final String attributeName,
+                String fidPrefix, SimpleFeatureType featureType) {
             super(iterator);
+            this.attributeName = attributeName;
             this.fidPrefix = fidPrefix;
+            this.featureType = featureType;
+
         }
 
         @Override
         public SimpleFeature next() {
             SimpleFeature next = super.next();
-            String fid = ((SimpleFeature) next).getID();
-            if (fid.startsWith(fidPrefix)) {
-                fid = fid.substring(fidPrefix.length());
+            if (attributeName == null) {
+                String fid = next.getID();
+                if (fid.startsWith(fidPrefix)) {
+                    fid = fid.substring(fidPrefix.length());
+                }
+                return new FidAndFtOverrideFeature(next, fid, featureType);
+            } else {
+                Object value = next.getAttribute(attributeName);
+                Preconditions.checkNotNull(value);
+                return new FidAndFtOverrideFeature(next, value.toString(), featureType);
             }
-            return new FidAndFtOverrideFeature(next, fid, next.getFeatureType());
         }
-
     }
 
     private void insert(final WorkingTree workTree, final String path,
@@ -453,60 +485,6 @@ public class ImportOp extends AbstractGeoGitOp<RevTree> {
     public ImportOp setDataStore(DataStore dataStore) {
         this.dataStore = dataStore;
         return this;
-    }
-
-    /**
-     * Replaces the default geotools fid with the string representation of the value of an
-     * attribute.
-     * 
-     * If the specified attribute is null, does not exist or the value is null, an fid is created by
-     * taking the default fid and removing the specified fidPrefix prefix from it.
-     * 
-     * It also replaces the feature type. This is used to avoid identical feature types (in terms of
-     * attributes) coming from different data sources (such as to shapefiles with different names)
-     * being considered different for having a different name. It is used in this importer class to
-     * decorate the name of the feature type when importing into a given tree, using the name of the
-     * tree.
-     * 
-     * The passed feature type should have the same attribute descriptions as the one to replace,
-     * but no checking is performed to ensure that
-     * 
-     */
-    private static final class FidAndFtReplacer implements Function<Feature, Feature> {
-
-        private String attributeName;
-
-        private String fidPrefix;
-
-        private SimpleFeatureType featureType;
-
-        public FidAndFtReplacer(final String attributeName, String fidPrefix,
-                SimpleFeatureType featureType) {
-            this.attributeName = attributeName;
-            this.fidPrefix = fidPrefix;
-            this.featureType = featureType;
-        }
-
-        @Override
-        public Feature apply(final Feature input) {
-            if (attributeName == null) {
-                String fid = ((SimpleFeature) input).getID();
-                if (fid.startsWith(fidPrefix)) {
-                    fid = fid.substring(fidPrefix.length());
-                }
-                return new FidAndFtOverrideFeature((SimpleFeature) input, fid, featureType);
-            } else {
-                Object value = ((SimpleFeature) input).getAttribute(attributeName);
-                if (value == null) {
-                    String fid = ((SimpleFeature) input).getID().substring(fidPrefix.length());
-                    return new FidAndFtOverrideFeature((SimpleFeature) input, fid, featureType);
-                } else {
-                    return new FidAndFtOverrideFeature((SimpleFeature) input, value.toString(),
-                            featureType);
-                }
-            }
-        }
-
     }
 
     private static final class FidAndFtOverrideFeature extends DecoratingFeature {

@@ -2,7 +2,8 @@ language: java
 before_install: 
   - cd src/parent
   - sudo apt-get install libspatialite-dev
-script: mvn -B test -PmongoOnlineTests
+install: mvn -B install -DskipTests=true -Ptravis
+script: mvn -B test -PmongoOnlineTests -Ptravis
 services: mongodb
 notifications:
   email: false

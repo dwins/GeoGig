@@ -26,8 +26,6 @@ import org.geogit.api.plumbing.LsTreeOp.Strategy;
 import org.geogit.api.plumbing.RevObjectParse;
 import org.geogit.api.porcelain.AddOp;
 import org.geogit.geotools.cli.porcelain.TestHelper;
-import org.geogit.geotools.plumbing.GeoToolsOpException;
-import org.geogit.geotools.plumbing.ImportOp;
 import org.geogit.repository.WorkingTree;
 import org.geogit.test.integration.RepositoryTestCase;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
@@ -38,7 +36,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.Name;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -300,6 +297,19 @@ public class ImportOpTest extends RepositoryTestCase {
         assertTrue(featureType.isPresent());
         assertEquals("table1", featureType.get().getName().getLocalPart());
         assertEquals("name", featureType.get().sortedDescriptors().get(1).getName().getLocalPart());
+    }
+
+    @Test
+    public void testImportWithFid() throws Exception {
+        ImportOp importOp = geogit.command(ImportOp.class);
+        importOp.setDataStore(TestHelper.createTestFactory().createDataStore(null));
+        importOp.setTable("table3");
+        importOp.setDestinationPath("table3");
+        importOp.setFidAttribute("number");
+        importOp.call();
+        Optional<RevFeature> feature = geogit.command(RevObjectParse.class)
+                .setRefSpec("WORK_HEAD:table3/1000").call(RevFeature.class);
+        assertTrue(feature.isPresent());
     }
 
     @Test

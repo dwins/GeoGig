@@ -26,6 +26,13 @@ Scenario: Show diff between working tree and index, omitting both refspecs
      When I run the command "diff-tree"
      Then the response should contain "Points/Points.1"       
       And the response should contain 1 lines   
+      
+Scenario: Show diff tree stats between working tree and index
+    Given I have a repository
+      And I stage 6 features
+      And I modify a feature      
+     When I run the command "diff-tree --tree-stats"
+     Then the response should contain "Points 0 0 1"                
             
 Scenario: Show diff using too many commit refspecs
     Given I have a repository

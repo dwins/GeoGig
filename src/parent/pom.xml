@@ -537,7 +537,7 @@
       <plugin>
         <groupId>pl.project13.maven</groupId>
         <artifactId>git-commit-id-plugin</artifactId>
-        <version>2.1.5</version>
+        <version>2.1.8</version>
         <executions>
           <execution>
             <goals>
@@ -564,6 +564,20 @@
       <properties>
         <online.skip.pattern>disabled</online.skip.pattern>
       </properties>
+    </profile>
+    <profile>
+      <id>travis</id> <!-- profile for travis-specific configuration tweaks -->
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>pl.project13.maven</groupId>
+            <artifactId>git-commit-id-plugin</artifactId>
+            <configuration>
+              <skip>true</skip> <!-- the git commit id plugin sometimes causes spurious failures on travis, so we are disabling it in that environment -->
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 

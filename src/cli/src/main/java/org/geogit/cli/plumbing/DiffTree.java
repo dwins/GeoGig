@@ -6,6 +6,7 @@
 package org.geogit.cli.plumbing;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -37,6 +38,7 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 /**
@@ -58,6 +60,9 @@ public class DiffTree extends AbstractCommand implements CLICommand {
     @Parameter(names = "--describe", description = "add description of versions for each modified element")
     private boolean describe;
 
+    @Parameter(names = "--tree-stats", description = "shows only statistics of modified elements in each changed tree")
+    private boolean treeStats;
+
     /**
      * Executes the diff-tree command with the specified options.
      */
@@ -65,6 +70,11 @@ public class DiffTree extends AbstractCommand implements CLICommand {
     protected void runInternal(GeogitCLI cli) throws IOException {
         if (refSpec.size() > 2) {
             throw new CommandFailedException("Tree refspecs list is too long :" + refSpec);
+        }
+
+        if (treeStats && describe) {
+            throw new CommandFailedException(
+                    "Cannot use --describe and --tree-stats simultaneously");
         }
 
         GeoGIT geogit = cli.getGeogit();
@@ -90,10 +100,12 @@ public class DiffTree extends AbstractCommand implements CLICommand {
         }
 
         DiffEntry diffEntry;
+        HashMap<String, Long[]> stats = Maps.newHashMap();
         while (diffEntries.hasNext()) {
             diffEntry = diffEntries.next();
             StringBuilder sb = new StringBuilder();
             String path = diffEntry.newPath() != null ? diffEntry.newPath() : diffEntry.oldPath();
+
             if (describe) {
                 sb.append(diffEntry.changeType().toString().charAt(0)).append(' ').append(path)
                         .append(LINE_BREAK);
@@ -174,15 +186,42 @@ public class DiffTree extends AbstractCommand implements CLICommand {
                     }
                     sb.append(LINE_BREAK);
                 }
-
                 sb.append(LINE_BREAK);
-            } else {
+                cli.getConsole().println(sb.toString());
+            } else if (treeStats) {
+                String parent = NodeRef.parentPath(path);
+                if (!stats.containsKey(parent)) {
+                    stats.put(parent, new Long[] { 0l, 0l, 0l });
+                }
+                Long[] counts = stats.get(parent);
+                if (diffEntry.changeType() == ChangeType.ADDED) {
+                    counts[0]++;
+                } else if (diffEntry.changeType() == ChangeType.REMOVED) {
+                    counts[1]++;
+                } else if (diffEntry.changeType() == ChangeType.MODIFIED) {
+                    counts[2]++;
+                }
+            }
+
+            else {
                 sb.append(path).append(' ');
                 sb.append(diffEntry.oldObjectId().toString());
                 sb.append(' ');
                 sb.append(diffEntry.newObjectId().toString());
+                cli.getConsole().println(sb.toString());
             }
-            cli.getConsole().println(sb.toString());
+
+        }
+        if (treeStats) {
+            for (String path : stats.keySet()) {
+                StringBuffer sb = new StringBuffer();
+                sb.append(path);
+                Long[] counts = stats.get(path);
+                for (int i = 0; i < counts.length; i++) {
+                    sb.append(" " + counts[i].toString());
+                }
+                cli.getConsole().println(sb.toString());
+            }
         }
     }
 
