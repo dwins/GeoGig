@@ -30,16 +30,14 @@ public class RepositoryConnectionException extends Exception {
             Optional<String> storageName = configDB.get("storage." + key);
             Optional<String> storageVersion = configDB.get(formatName + ".version");
             if (storageName.isPresent() && !storageName.get().equals(formatName)) {
-                throw new RepositoryConnectionException("Initializing already "
-                        + "initialized " + key + " database. Would set " +
-                        formatName + ":" + version + " but found " +
-                        storageName.orNull() + ":" + storageVersion.orNull());
+                throw new RepositoryConnectionException("Initializing already " + "initialized "
+                        + key + " database. Would set " + formatName + ":" + version
+                        + " but found " + storageName.orNull() + ":" + storageVersion.orNull());
             }
             if (storageVersion.isPresent() && !version.equals(storageVersion.get())) {
-                throw new RepositoryConnectionException("Initializing already "
-                        + "initialized " + key + " database. Would set " +
-                        formatName + ":" + version + " but found " +
-                        storageName.orNull() + ":" + storageVersion.orNull());
+                throw new RepositoryConnectionException("Initializing already " + "initialized "
+                        + key + " database. Would set " + formatName + ":" + version
+                        + " but found " + storageName.orNull() + ":" + storageVersion.orNull());
             }
             configDB.put("storage." + key, formatName);
             configDB.put(formatName + ".version", version);

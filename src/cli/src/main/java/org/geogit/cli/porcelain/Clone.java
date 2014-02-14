@@ -6,19 +6,12 @@
 package org.geogit.cli.porcelain;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.List;
 
 import org.geogit.api.GeoGIT;
-import org.geogit.api.plumbing.ResolveGeogitDir;
 import org.geogit.api.porcelain.CloneOp;
-import org.geogit.api.porcelain.ConfigOp;
-import org.geogit.api.porcelain.ConfigOp.ConfigAction;
-import org.geogit.api.porcelain.ConfigOp.ConfigScope;
 import org.geogit.api.porcelain.InitOp;
 import org.geogit.cli.AbstractCommand;
 import org.geogit.cli.CLICommand;
@@ -29,9 +22,6 @@ import org.geogit.repository.Repository;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.Files;
 
 /**
  * Clones a repository into a newly created directory, creates remote-tracking branches for each
@@ -127,15 +117,16 @@ public class Clone extends AbstractCommand implements CLICommand {
                 repoDir = new File(currDir, sp[sp.length - 1]).getCanonicalFile();
 
                 if (!repoDir.exists() && !repoDir.mkdirs()) {
-                  throw new CommandFailedException("Can't create directory "
-                      + repoDir.getAbsolutePath());
+                    throw new CommandFailedException("Can't create directory "
+                            + repoDir.getAbsolutePath());
                 }
             }
         }
 
         GeoGIT geogit = new GeoGIT(cli.getGeogitInjector(), repoDir);
 
-        Repository repository = geogit.command(InitOp.class).setConfig(Init.splitConfig(config)).setFilterFile(filterFile).call();
+        Repository repository = geogit.command(InitOp.class).setConfig(Init.splitConfig(config))
+                .setFilterFile(filterFile).call();
         checkParameter(repository != null,
                 "Destination path already exists and is not an empty directory.");
         cli.setGeogit(geogit);

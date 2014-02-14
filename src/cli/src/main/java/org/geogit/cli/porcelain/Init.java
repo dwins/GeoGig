@@ -13,13 +13,11 @@ import java.util.List;
 
 import org.geogit.api.GeoGIT;
 import org.geogit.api.plumbing.ResolveGeogitDir;
-import org.geogit.api.porcelain.ConfigException;
 import org.geogit.api.porcelain.InitOp;
 import org.geogit.cli.AbstractCommand;
 import org.geogit.cli.CLICommand;
 import org.geogit.cli.CommandFailedException;
 import org.geogit.cli.GeogitCLI;
-import org.geogit.cli.InvalidParameterException;
 import org.geogit.cli.RequiresRepository;
 import org.geogit.di.PluginDefaults;
 import org.geogit.di.VersionedFormat;
@@ -84,6 +82,7 @@ public class Init extends AbstractCommand implements CLICommand {
             builder.add(graph.get().getVersion());
         }
     }
+
     /**
      * Executes the init command.
      */
@@ -120,7 +119,8 @@ public class Init extends AbstractCommand implements CLICommand {
         builder.addAll(splitConfig(config));
         List<String> effectiveConfiguration = builder.build();
 
-        Repository repository = geogit.command(InitOp.class).setConfig(effectiveConfiguration).call();
+        Repository repository = geogit.command(InitOp.class).setConfig(effectiveConfiguration)
+                .call();
         final boolean repoExisted = repository == null;
         geogit.setRepository(repository);
         cli.setGeogit(geogit);
@@ -149,7 +149,8 @@ public class Init extends AbstractCommand implements CLICommand {
             String[] options = config.split(",");
             for (String option : options) {
                 String[] kv = option.split("=", 2);
-                if (kv.length < 2) continue;
+                if (kv.length < 2)
+                    continue;
                 builder.add(kv[0], kv[1]);
             }
         }

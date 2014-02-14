@@ -8,8 +8,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
@@ -57,8 +57,6 @@ import com.google.inject.Injector;
 @CanRunDuringConflict
 public class InitOp extends AbstractGeoGitOp<Repository> {
 
-    private List<String> initialOptions;
-
     private Platform platform;
 
     private Injector injector;
@@ -82,7 +80,7 @@ public class InitOp extends AbstractGeoGitOp<Repository> {
         this.injector = injector;
     }
 
-    public InitOp  setConfig(List<String> config) {
+    public InitOp setConfig(List<String> config) {
         this.config = config;
         return this;
     }
@@ -128,7 +126,8 @@ public class InitOp extends AbstractGeoGitOp<Repository> {
         }
 
         ImmutableList.Builder<String> effectiveConfigBuilder = ImmutableList.builder();
-        if (config != null) effectiveConfigBuilder.addAll(config);
+        if (config != null)
+            effectiveConfigBuilder.addAll(config);
 
         if (filterFile != null) {
             try {

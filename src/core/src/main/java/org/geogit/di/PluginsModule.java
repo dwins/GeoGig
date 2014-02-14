@@ -1,15 +1,19 @@
+/* Copyright (c) 2013 OpenPlans. All rights reserved.
+ * This code is licensed under the BSD New License, available at the root
+ * application directory.
+ */
 package org.geogit.di;
 
 import java.util.Map;
+
 import org.geogit.storage.ConfigDatabase;
 import org.geogit.storage.GraphDatabase;
 import org.geogit.storage.ObjectDatabase;
 import org.geogit.storage.RefDatabase;
 import org.geogit.storage.StagingDatabase;
-import org.geogit.storage.memory.HeapGraphDatabase;
+
 import com.google.inject.Inject;
 import com.google.inject.Provider;
-import com.google.inject.multibindings.MapBinder;
 
 public class PluginsModule extends GeogitModule {
     protected void configure() {
@@ -22,7 +26,6 @@ public class PluginsModule extends GeogitModule {
     private static class PluginObjectDatabaseProvider extends FormatSelector<ObjectDatabase> {
         private final PluginDefaults defaults;
 
-
         @Override
         protected final VersionedFormat readConfig(ConfigDatabase config) {
             String format = null, version = null;
@@ -33,7 +36,8 @@ public class PluginsModule extends GeogitModule {
                 // ignore, the config may not be available when we need this.
             }
             if (format == null || version == null) {
-                // .get, not .orNull. we should only be using the plugin providers when there are plugins set up
+                // .get, not .orNull. we should only be using the plugin providers when there are
+                // plugins set up
                 return defaults.getObjects().get();
             } else {
                 return new VersionedFormat(format, version);
@@ -41,7 +45,8 @@ public class PluginsModule extends GeogitModule {
         }
 
         @Inject
-        public PluginObjectDatabaseProvider(PluginDefaults defaults, ConfigDatabase config, Map<VersionedFormat, Provider<ObjectDatabase>> plugins) {
+        public PluginObjectDatabaseProvider(PluginDefaults defaults, ConfigDatabase config,
+                Map<VersionedFormat, Provider<ObjectDatabase>> plugins) {
             super(config, plugins);
             this.defaults = defaults;
         }
@@ -61,7 +66,8 @@ public class PluginsModule extends GeogitModule {
             }
 
             if (format == null || version == null) {
-                // .get, not .orNull. we should only be using the plugin providers when there are plugins set up
+                // .get, not .orNull. we should only be using the plugin providers when there are
+                // plugins set up
                 return defaults.getStaging().get();
             } else {
                 return new VersionedFormat(format, version);
@@ -69,7 +75,8 @@ public class PluginsModule extends GeogitModule {
         }
 
         @Inject
-        public PluginStagingDatabaseProvider(PluginDefaults defaults, ConfigDatabase config, Map<VersionedFormat, Provider<StagingDatabase>> plugins) {
+        public PluginStagingDatabaseProvider(PluginDefaults defaults, ConfigDatabase config,
+                Map<VersionedFormat, Provider<StagingDatabase>> plugins) {
             super(config, plugins);
             this.defaults = defaults;
         }
@@ -89,7 +96,8 @@ public class PluginsModule extends GeogitModule {
             }
 
             if (format == null || version == null) {
-                // .get, not .orNull. we should only be using the plugin providers when there are plugins set up
+                // .get, not .orNull. we should only be using the plugin providers when there are
+                // plugins set up
                 return defaults.getRefs().get();
             } else {
                 return new VersionedFormat(format, version);
@@ -97,7 +105,8 @@ public class PluginsModule extends GeogitModule {
         }
 
         @Inject
-        public PluginRefDatabaseProvider(PluginDefaults defaults, ConfigDatabase config, Map<VersionedFormat, Provider<RefDatabase>> plugins) {
+        public PluginRefDatabaseProvider(PluginDefaults defaults, ConfigDatabase config,
+                Map<VersionedFormat, Provider<RefDatabase>> plugins) {
             super(config, plugins);
             this.defaults = defaults;
         }
@@ -117,7 +126,8 @@ public class PluginsModule extends GeogitModule {
             }
 
             if (format == null || version == null) {
-                // .get, not .orNull. we should only be using the plugin providers when there are plugins set up
+                // .get, not .orNull. we should only be using the plugin providers when there are
+                // plugins set up
                 return defaults.getGraph().get();
             } else {
                 return new VersionedFormat(format, version);
@@ -125,7 +135,8 @@ public class PluginsModule extends GeogitModule {
         }
 
         @Inject
-        public PluginGraphDatabaseProvider(PluginDefaults defaults, ConfigDatabase config, Map<VersionedFormat, Provider<GraphDatabase>> plugins) {
+        public PluginGraphDatabaseProvider(PluginDefaults defaults, ConfigDatabase config,
+                Map<VersionedFormat, Provider<GraphDatabase>> plugins) {
             super(config, plugins);
             this.defaults = defaults;
         }

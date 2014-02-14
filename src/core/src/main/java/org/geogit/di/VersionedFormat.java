@@ -1,9 +1,14 @@
+/* Copyright (c) 2013 OpenPlans. All rights reserved.
+ * This code is licensed under the BSD New License, available at the root
+ * application directory.
+ */
 package org.geogit.di;
 
 import com.google.common.base.Objects;
 
 public final class VersionedFormat {
     private final String version;
+
     private final String format;
 
     public VersionedFormat(String format, String version) {

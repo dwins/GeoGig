@@ -1,12 +1,18 @@
+/* Copyright (c) 2013 OpenPlans. All rights reserved.
+ * This code is licensed under the BSD New License, available at the root
+ * application directory.
+ */
 package org.geogit.di;
 
 import java.util.Map;
+
 import org.geogit.storage.ConfigDatabase;
-import org.geogit.storage.GraphDatabase;
+
 import com.google.inject.Provider;
 
 public abstract class FormatSelector<T> implements Provider<T> {
     private final ConfigDatabase config;
+
     private final Map<VersionedFormat, Provider<T>> plugins;
 
     public FormatSelector(ConfigDatabase config, Map<VersionedFormat, Provider<T>> plugins) {
@@ -22,7 +28,8 @@ public abstract class FormatSelector<T> implements Provider<T> {
             VersionedFormat configuredFormat = readConfig(config);
             Provider<T> formatProvider = plugins.get(configuredFormat);
             if (formatProvider == null) {
-                throw new RuntimeException("No such format: " + configuredFormat + "(from " + config.getAll() + ")");
+                throw new RuntimeException("No such format: " + configuredFormat + "(from "
+                        + config.getAll() + ")");
             } else {
                 return formatProvider.get();
             }
