@@ -2,9 +2,11 @@
  * This code is licensed under the BSD New License, available at the root
  * application directory.
  */
-package org.geogit.blongo;
+package org.geogit.storage.mongo;
 
 import java.lang.reflect.Method;
+
+import org.geogit.storage.mongo.MongoGraph;
 
 import com.mongodb.DB;
 import com.mongodb.DBCollection;

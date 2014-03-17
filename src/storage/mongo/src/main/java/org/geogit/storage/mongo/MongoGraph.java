@@ -2,23 +2,25 @@
  * This code is licensed under the BSD New License, available at the root
  * application directory.
  */
-package org.geogit.blongo;
+package org.geogit.storage.mongo;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.mongodb.BasicDBObjectBuilder;
+import org.bson.types.ObjectId;
+
+import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
 import com.mongodb.BasicDBObject;
+import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.WriteResult;
-import com.tinkerpop.blueprints.CloseableIterable;
-import com.tinkerpop.blueprints.Contains;
 import com.tinkerpop.blueprints.Contains;
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
@@ -31,10 +33,7 @@ import com.tinkerpop.blueprints.Parameter;
 import com.tinkerpop.blueprints.Vertex;
 import com.tinkerpop.blueprints.VertexQuery;
 import com.tinkerpop.blueprints.util.DefaultGraphQuery;
-import com.tinkerpop.blueprints.util.DefaultQuery;
 import com.tinkerpop.blueprints.util.DefaultVertexQuery;
-
-import org.bson.types.ObjectId;
 
 /**
  * MongoGraph encodes a general property graph into a MongoDB collection.
@@ -54,7 +53,7 @@ import org.bson.types.ObjectId;
  *     properties according to the index type - the name just helps the system
  *     to know which one we expect.
  */
-public class MongoGraph implements Graph, KeyIndexableGraph {
+class MongoGraph implements Graph, KeyIndexableGraph {
     private final DBCollection collection;
 
     public MongoGraph(DBCollection collection) {
@@ -132,27 +131,30 @@ public class MongoGraph implements Graph, KeyIndexableGraph {
     }
 
     private Iterable<Edge> edges(Iterable<DBObject> objects) {
-        return new AdaptingIterable<DBObject, Edge>(objects) {
-            public Edge transform(DBObject record) {
+        return Iterables.transform(objects, new Function<DBObject, Edge>() {
+            @Override
+            public Edge apply(DBObject record) {
                 return new MEdge(record);
             }
-        };
+        });
     }
 
     private Iterable<Vertex> vertices(Iterable<DBObject> objects) {
-        return new AdaptingIterable<DBObject, Vertex>(objects) {
-            public Vertex transform(DBObject record) {
+        return Iterables.transform(objects, new Function<DBObject, Vertex>() {
+            @Override
+            public Vertex apply(DBObject record) {
                 return new MVertex(record);
             }
-        };
+        });
     }
 
     private Iterable<Vertex> edgeVertices(final Direction direction, Iterable<Edge> objects) {
-        return new AdaptingIterable<Edge, Vertex>(objects) {
-            Vertex transform(Edge edge) {
+        return Iterables.transform(objects, new Function<Edge, Vertex>() {
+            @Override
+            public Vertex apply(Edge edge) {
                 return edge.getVertex(direction);
             }
-        };
+        });
     }
 
     public Features getFeatures() {
@@ -429,7 +431,7 @@ public class MongoGraph implements Graph, KeyIndexableGraph {
             DBObject path, query;
             switch(direction) {
             case BOTH:
-                return new ConcatenatedIterable(
+                return Iterables.concat(
                            getEdges(Direction.OUT, labels),
                            getEdges(Direction.IN, labels));
             case IN:
@@ -466,7 +468,7 @@ public class MongoGraph implements Graph, KeyIndexableGraph {
             case IN:
                 return edgeVertices(Direction.OUT, getEdges(direction, labels));
             case BOTH:
-                return new ConcatenatedIterable(
+                return Iterables.concat(
                            getVertices(Direction.OUT, labels),
                            getVertices(Direction.IN, labels));
             default:
@@ -876,9 +878,9 @@ public class MongoGraph implements Graph, KeyIndexableGraph {
 
         @Override
         public Iterable<Vertex> vertices() {
-            return new AdaptingIterable<Edge, Vertex>(edges()) {
+            return Iterables.transform(edges(), new Function<Edge, Vertex>() {
                 @Override
-                public Vertex transform(Edge e) {
+                public Vertex apply(Edge e) {
                     Vertex v = e.getVertex(Direction.OUT);
                     if (!v.equals(vertex)) {
                         return v;
@@ -886,7 +888,7 @@ public class MongoGraph implements Graph, KeyIndexableGraph {
                         return e.getVertex(Direction.IN);
                     }
                 }
-            };
+            });
         }
     }
 
