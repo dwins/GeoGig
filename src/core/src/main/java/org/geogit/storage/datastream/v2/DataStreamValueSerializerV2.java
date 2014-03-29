@@ -2,7 +2,14 @@
  * This code is licensed under the BSD New License, available at the root
  * application directory.
  */
-package org.geogit.storage.datastream;
+package org.geogit.storage.datastream.v2;
+
+import static org.geogit.storage.datastream.v2.Varint.readSignedVarInt;
+import static org.geogit.storage.datastream.v2.Varint.readSignedVarLong;
+import static org.geogit.storage.datastream.v2.Varint.readUnsignedVarInt;
+import static org.geogit.storage.datastream.v2.Varint.writeSignedVarInt;
+import static org.geogit.storage.datastream.v2.Varint.writeSignedVarLong;
+import static org.geogit.storage.datastream.v2.Varint.writeUnsignedVarInt;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -25,9 +32,9 @@ import com.vividsolutions.jts.io.WKBWriter;
  * A class to serializer/deserialize attribute values to/from a data stream
  * 
  */
-class DataStreamValueSerializer {
+class DataStreamValueSerializerV2 {
 
-    static interface ValueSerializer {
+    public static interface ValueSerializer {
 
         public Object read(DataInput in) throws IOException;
 
@@ -73,34 +80,34 @@ class DataStreamValueSerializer {
         serializers.put(FieldType.SHORT, new ValueSerializer() {
             @Override
             public Object read(DataInput in) throws IOException {
-                return in.readShort();
+                return Short.valueOf((short) readSignedVarInt(in));
             }
 
             @Override
             public void write(Object field, DataOutput data) throws IOException {
-                data.writeShort((Short) field);
+                writeSignedVarInt(((Number) field).intValue(), data);
             }
         });
         serializers.put(FieldType.INTEGER, new ValueSerializer() {
             @Override
             public Object read(DataInput in) throws IOException {
-                return in.readInt();
+                return Integer.valueOf(readSignedVarInt(in));
             }
 
             @Override
             public void write(Object field, DataOutput data) throws IOException {
-                data.writeInt((Integer) field);
+                writeSignedVarInt(((Number) field).intValue(), data);
             }
         });
         serializers.put(FieldType.LONG, new ValueSerializer() {
             @Override
             public Object read(DataInput in) throws IOException {
-                return in.readLong();
+                return Long.valueOf(readSignedVarLong(in));
             }
 
             @Override
             public void write(Object field, DataOutput data) throws IOException {
-                data.writeLong((Long) field);
+                writeSignedVarLong(((Number) field).longValue(), data);
             }
         });
         serializers.put(FieldType.FLOAT, new ValueSerializer() {
@@ -139,7 +146,7 @@ class DataStreamValueSerializer {
         serializers.put(FieldType.BOOLEAN_ARRAY, new ValueSerializer() {
             @Override
             public Object read(DataInput in) throws IOException {
-                final int len = in.readInt();
+                final int len = readUnsignedVarInt(in);
                 byte[] packed = new byte[(len + 7) / 8]; // we want to round up as long as i % 8 !=
                                                          // 0
                 boolean[] bits = new boolean[len];
@@ -182,14 +189,14 @@ class DataStreamValueSerializer {
                     bytes[index] = (byte) chunk;
                 }
 
-                data.writeInt(bools.length);
+                writeUnsignedVarInt(bools.length, data);
                 data.write(bytes);
             }
         });
         final ValueSerializer byteArray = new ValueSerializer() {
             @Override
             public Object read(DataInput in) throws IOException {
-                int len = in.readInt();
+                final int len = readUnsignedVarInt(in);
                 byte[] bytes = new byte[len];
                 in.readFully(bytes);
                 return bytes;
@@ -197,7 +204,7 @@ class DataStreamValueSerializer {
 
             @Override
             public void write(Object field, DataOutput data) throws IOException {
-                data.writeInt(((byte[]) field).length);
+                writeUnsignedVarInt(((byte[]) field).length, data);
                 data.write((byte[]) field);
             }
         };
@@ -205,7 +212,7 @@ class DataStreamValueSerializer {
         serializers.put(FieldType.SHORT_ARRAY, new ValueSerializer() {
             @Override
             public Object read(DataInput in) throws IOException {
-                int len = in.readInt();
+                final int len = readUnsignedVarInt(in);
                 short[] shorts = new short[len];
                 for (int i = 0; i < len; i++) {
                     shorts[i] = in.readShort();
@@ -215,7 +222,7 @@ class DataStreamValueSerializer {
 
             @Override
             public void write(Object field, DataOutput data) throws IOException {
-                data.writeInt(((short[]) field).length);
+                writeUnsignedVarInt(((short[]) field).length, data);
                 for (short s : (short[]) field)
                     data.writeShort(s);
             }
@@ -223,7 +230,7 @@ class DataStreamValueSerializer {
         serializers.put(FieldType.INTEGER_ARRAY, new ValueSerializer() {
             @Override
             public Object read(DataInput in) throws IOException {
-                int len = in.readInt();
+                final int len = readUnsignedVarInt(in);
                 int[] ints = new int[len];
                 for (int i = 0; i < len; i++) {
                     ints[i] = in.readInt();
@@ -233,7 +240,7 @@ class DataStreamValueSerializer {
 
             @Override
             public void write(Object field, DataOutput data) throws IOException {
-                data.writeInt(((int[]) field).length);
+                writeUnsignedVarInt(((int[]) field).length, data);
                 for (int i : (int[]) field)
                     data.writeInt(i);
             }
@@ -241,7 +248,7 @@ class DataStreamValueSerializer {
         serializers.put(FieldType.LONG_ARRAY, new ValueSerializer() {
             @Override
             public Object read(DataInput in) throws IOException {
-                int len = in.readInt();
+                final int len = readUnsignedVarInt(in);
                 long[] longs = new long[len];
                 for (int i = 0; i < len; i++) {
                     longs[i] = in.readLong();
@@ -251,7 +258,7 @@ class DataStreamValueSerializer {
 
             @Override
             public void write(Object field, DataOutput data) throws IOException {
-                data.writeInt(((long[]) field).length);
+                writeUnsignedVarInt(((long[]) field).length, data);
                 for (long l : (long[]) field)
                     data.writeLong(l);
             }
@@ -259,7 +266,7 @@ class DataStreamValueSerializer {
         serializers.put(FieldType.FLOAT_ARRAY, new ValueSerializer() {
             @Override
             public Object read(DataInput in) throws IOException {
-                int len = in.readInt();
+                final int len = readUnsignedVarInt(in);
                 float[] floats = new float[len];
                 for (int i = 0; i < len; i++) {
                     floats[i] = in.readFloat();
@@ -269,7 +276,7 @@ class DataStreamValueSerializer {
 
             @Override
             public void write(Object field, DataOutput data) throws IOException {
-                data.writeInt(((float[]) field).length);
+                writeUnsignedVarInt(((float[]) field).length, data);
                 for (float f : (float[]) field)
                     data.writeFloat(f);
             }
@@ -277,7 +284,7 @@ class DataStreamValueSerializer {
         serializers.put(FieldType.DOUBLE_ARRAY, new ValueSerializer() {
             @Override
             public Object read(DataInput in) throws IOException {
-                int len = in.readInt();
+                final int len = readUnsignedVarInt(in);
                 double[] doubles = new double[len];
                 for (int i = 0; i < len; i++) {
                     doubles[i] = in.readDouble();
@@ -287,7 +294,7 @@ class DataStreamValueSerializer {
 
             @Override
             public void write(Object field, DataOutput data) throws IOException {
-                data.writeInt(((double[]) field).length);
+                writeUnsignedVarInt(((double[]) field).length, data);
                 for (double d : (double[]) field)
                     data.writeDouble(d);
             }
@@ -295,7 +302,7 @@ class DataStreamValueSerializer {
         serializers.put(FieldType.STRING_ARRAY, new ValueSerializer() {
             @Override
             public Object read(DataInput in) throws IOException {
-                int len = in.readInt();
+                final int len = readUnsignedVarInt(in);
                 String[] strings = new String[len];
                 for (int i = 0; i < len; i++) {
                     strings[i] = in.readUTF();
@@ -305,7 +312,7 @@ class DataStreamValueSerializer {
 
             @Override
             public void write(Object field, DataOutput data) throws IOException {
-                data.writeInt(((String[]) field).length);
+                writeUnsignedVarInt(((String[]) field).length, data);
                 for (String s : (String[]) field)
                     data.writeUTF(s);
             }
@@ -313,9 +320,7 @@ class DataStreamValueSerializer {
         ValueSerializer geometry = new ValueSerializer() {
             @Override
             public Object read(DataInput in) throws IOException {
-                int len = in.readInt();
-                byte[] bytes = new byte[len]; // TODO: We should bound this to limit memory usage.
-                in.readFully(bytes);
+                byte[] bytes = (byte[]) byteArray.read(in);
                 WKBReader wkbReader = new WKBReader();
                 try {
                     return wkbReader.read(bytes);
@@ -331,6 +336,7 @@ class DataStreamValueSerializer {
                 byteArray.write(bytes, data);
             }
         };
+//        ValueSerializer geometry = new GeometrySerializer();
         serializers.put(FieldType.GEOMETRY, geometry);
         serializers.put(FieldType.POINT, geometry);
         serializers.put(FieldType.LINESTRING, geometry);
@@ -342,23 +348,21 @@ class DataStreamValueSerializer {
         serializers.put(FieldType.UUID, new ValueSerializer() {
             @Override
             public Object read(DataInput in) throws IOException {
-                long upper = in.readLong();
-                long lower = in.readLong();
+                long upper = readSignedVarLong(in);
+                long lower = readSignedVarLong(in);
                 return new java.util.UUID(upper, lower);
             }
 
             @Override
             public void write(Object field, DataOutput data) throws IOException {
-                data.writeLong(((java.util.UUID) field).getMostSignificantBits());
-                data.writeLong(((java.util.UUID) field).getLeastSignificantBits());
+                writeSignedVarLong(((java.util.UUID) field).getMostSignificantBits(), data);
+                writeSignedVarLong(((java.util.UUID) field).getLeastSignificantBits(), data);
             }
         });
         final ValueSerializer bigInteger = new ValueSerializer() {
             @Override
             public Object read(DataInput in) throws IOException {
-                int len = in.readInt();
-                byte[] bytes = new byte[len];
-                in.readFully(bytes);
+                byte[] bytes = (byte[]) byteArray.read(in);
                 return new BigInteger(bytes);
             }
 
@@ -373,10 +377,7 @@ class DataStreamValueSerializer {
             @Override
             public Object read(DataInput in) throws IOException {
                 int scale = in.readInt();
-                int len = in.readInt();
-                byte[] bytes = new byte[len];
-                in.readFully(bytes);
-                BigInteger intValue = new BigInteger(bytes);
+                BigInteger intValue = (BigInteger) bigInteger.read(in);
                 BigDecimal decValue = new BigDecimal(intValue, scale);
                 return decValue;
             }

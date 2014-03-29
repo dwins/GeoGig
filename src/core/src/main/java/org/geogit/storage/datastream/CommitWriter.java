@@ -18,7 +18,7 @@ import org.geogit.api.ObjectId;
 import org.geogit.api.RevCommit;
 import org.geogit.storage.ObjectWriter;
 
-public class CommitWriter implements ObjectWriter<RevCommit> {
+class CommitWriter implements ObjectWriter<RevCommit> {
     @Override
     public void write(RevCommit commit, OutputStream out) throws IOException {
         DataOutput data = new DataOutputStream(out);

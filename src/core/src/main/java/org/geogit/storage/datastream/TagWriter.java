@@ -13,7 +13,7 @@ import org.geogit.storage.ObjectWriter;
 
 import com.google.common.base.Throwables;
 
-public class TagWriter implements ObjectWriter<RevTag> {
+class TagWriter implements ObjectWriter<RevTag> {
     public void write(RevTag tag, OutputStream out) {
         final DataOutput data = new DataOutputStream(out);
         try {

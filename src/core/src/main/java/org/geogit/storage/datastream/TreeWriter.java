@@ -23,7 +23,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedMap;
 import com.vividsolutions.jts.geom.Envelope;
 
-public class TreeWriter implements ObjectWriter<RevTree> {
+class TreeWriter implements ObjectWriter<RevTree> {
     @Override
     public void write(RevTree tree, OutputStream out) throws IOException {
         DataOutput data = new DataOutputStream(out);

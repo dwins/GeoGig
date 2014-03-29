@@ -7,6 +7,7 @@ package org.geogit.storage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Map;
 
 import org.geogit.api.Bucket;
 import org.geogit.api.Node;
@@ -20,6 +21,7 @@ import org.junit.Test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.vividsolutions.jts.geom.Envelope;
 
 public abstract class RevTreeSerializationTest extends Assert {
@@ -86,6 +88,31 @@ public abstract class RevTreeSerializationTest extends Assert {
     public void testRoundTripBuckets() {
         RevTree roundTripped = read(tree3_buckets.getId(), write(tree3_buckets));
         assertTreesAreEqual(tree3_buckets, roundTripped);
+    }
+
+    @Test
+    public void testRoundTripBucketsFull() {
+
+        ObjectId id = ObjectId.forString("fake");
+        long size = 100000000;
+        int childTreeCount = 0;
+        Map<Integer, Bucket> bucketTrees = createBuckets(32);
+
+        final RevTreeImpl tree = RevTreeImpl.createNodeTree(id, size, childTreeCount, bucketTrees);
+        
+        RevTree roundTripped = read(tree.getId(), write(tree));
+        assertTreesAreEqual(tree, roundTripped);
+
+    }
+
+    private Map<Integer, Bucket> createBuckets(int count) {
+        Map<Integer, Bucket> buckets = Maps.newHashMap();
+        for (int i = 0; i < count; i++) {
+            Bucket bucket = Bucket.create(ObjectId.forString("b" + i), new Envelope(i, i * 2, i,
+                    i * 2));
+            buckets.put(i, bucket);
+        }
+        return buckets;
     }
 
     @Test

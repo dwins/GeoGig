@@ -20,7 +20,7 @@ import java.io.InputStream;
 import org.geogit.api.ObjectId;
 import org.geogit.api.RevObject;
 
-public class ObjectReader implements org.geogit.storage.ObjectReader<RevObject> {
+class ObjectReader implements org.geogit.storage.ObjectReader<RevObject> {
     @Override
     public RevObject read(ObjectId id, InputStream rawData) throws IllegalArgumentException {
         DataInput in = new DataInputStream(rawData);
