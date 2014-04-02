@@ -9,10 +9,15 @@ import static com.google.common.collect.Iterators.partition;
 import static com.sleepycat.je.OperationStatus.NOTFOUND;
 import static com.sleepycat.je.OperationStatus.SUCCESS;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -87,6 +92,8 @@ public class JEObjectDatabase extends AbstractObjectDatabase implements ObjectDa
 
     private ExecutorService writerService;
 
+    OutputStream fout;
+
     /**
      * The default number of objects bulk operations are partitioned into
      * 
@@ -148,6 +155,12 @@ public class JEObjectDatabase extends AbstractObjectDatabase implements ObjectDa
             LOGGER.trace("Database already closed.");
             return;
         }
+        try {
+            fout.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         final File envHome = env.getHome();
         try {
             LOGGER.debug("Closing object database at {}", envHome);
@@ -208,6 +221,14 @@ public class JEObjectDatabase extends AbstractObjectDatabase implements ObjectDa
 
         LOGGER.debug("Object database opened at {}. Transactional: {}", env.getHome(), objectDb
                 .getConfig().getTransactional());
+
+        final File file = new File(this.objectDb.getEnvironment().getHome().getName() + ".objects");
+        try {
+            fout = new BufferedOutputStream(new FileOutputStream(file));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
     }
 
     protected Database createDatabase() {
@@ -511,6 +532,14 @@ public class JEObjectDatabase extends AbstractObjectDatabase implements ObjectDa
                     objectId.getRawValue(key.getData());
                     DatabaseEntry data = new DatabaseEntry(rawData, offset, size);
 
+                    try {
+                        synchronized (fout) {
+                            //fout.write(key.getData());
+                            fout.write(data.getData(), offset, size);
+                        }
+                    } catch (Exception e2) {
+                        e2.printStackTrace();
+                    }
                     OperationStatus status = objectDb.putNoOverwrite(transaction, key, data);
                     if (OperationStatus.SUCCESS.equals(status)) {
                         listener.inserted(objectId, size);
