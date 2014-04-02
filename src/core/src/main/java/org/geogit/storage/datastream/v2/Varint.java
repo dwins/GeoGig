@@ -33,7 +33,7 @@ import com.google.common.base.Preconditions;
  * <p>Signed values are further encoded using so-called zig-zag encoding
  * in order to make them "compatible" with variable-length encoding.</p>
  */
-public final class Varint {
+final class Varint {
 
   private Varint() {
   }

@@ -1,9 +1,9 @@
 package org.geogit.storage.datastream.v2;
 
+import static org.geogit.storage.datastream.v2.Varint.readSignedVarInt;
 import static org.geogit.storage.datastream.v2.Varint.readUnsignedVarInt;
-import static org.geogit.storage.datastream.v2.Varint.readUnsignedVarLong;
+import static org.geogit.storage.datastream.v2.Varint.writeSignedVarInt;
 import static org.geogit.storage.datastream.v2.Varint.writeUnsignedVarInt;
-import static org.geogit.storage.datastream.v2.Varint.writeUnsignedVarLong;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -13,7 +13,6 @@ import org.geogit.storage.datastream.v2.DataStreamValueSerializerV2.ValueSeriali
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.CoordinateSequence;
 import com.vividsolutions.jts.geom.CoordinateSequenceFilter;
 import com.vividsolutions.jts.geom.Geometry;
@@ -27,7 +26,7 @@ import com.vividsolutions.jts.geom.Point;
 import com.vividsolutions.jts.geom.Polygon;
 import com.vividsolutions.jts.geom.impl.PackedCoordinateSequenceFactory;
 
-public class GeometrySerializer implements ValueSerializer {
+class GeometrySerializer implements ValueSerializer {
 
     private static final int POINT = 0x01;
 
@@ -48,6 +47,17 @@ public class GeometrySerializer implements ValueSerializer {
     private static final GeometryFactory GEOMFAC = new GeometryFactory(
             new PackedCoordinateSequenceFactory());
 
+    private static abstract class GeometryEncoder {
+
+        abstract void write(DataOutput out) throws IOException;
+
+        abstract Geometry read(DataInput in) throws IOException;
+    }
+
+    private static GeometryEncoder[] ENCODERS = new GeometryEncoder[] {//
+
+    };
+
     @Override
     public void write(Object obj, final DataOutput out) throws IOException {
 
@@ -56,44 +66,35 @@ public class GeometrySerializer implements ValueSerializer {
         final int typeAndMasks = geometryType;
 
         writeUnsignedVarInt(typeAndMasks, out);
-        geom.apply(new EncodingSequenceFilter(out));
+        geom.apply(new EncodingSequenceFilter(out, true));
     }
 
     @Override
-    public Object read(DataInput in) throws IOException {
+    public Geometry read(DataInput in) throws IOException {
 
         final int typeAndMasks = readUnsignedVarInt(in);
 
+        Geometry geom;
         if ((typeAndMasks & POINT) == POINT) {
-            int xl = readUnsignedVarInt(in);
-            int yl = readUnsignedVarInt(in);
-            double x = toDoublePrecision(xl);
-            double y = toDoublePrecision(yl);
-            Point p = GEOMFAC.createPoint(new Coordinate(x, y));
+            geom = GEOMFAC.createPoint(EncodingSequenceFilter.readCoordinate(in));
+        } else if ((typeAndMasks & LINESTRING) == LINESTRING) {
+            CoordinateSequence cs = EncodingSequenceFilter.read(in);
+            geom = GEOMFAC.createLineString(cs);
+        } else {
+            throw new UnsupportedOperationException();
         }
-        return null;
+        return geom;
     }
 
     private static final class EncodingSequenceFilter implements CoordinateSequenceFilter {
 
         private DataOutput out;
 
-        public EncodingSequenceFilter(DataOutput out) {
-            this.out = out;
-        }
+        private boolean writeLength;
 
-        @Override
-        public void filter(CoordinateSequence seq, int index) {
-            double ordinate1 = seq.getOrdinate(index, 0);
-            double ordinate2 = seq.getOrdinate(index, 1);
-            int fixedO1 = toFixedPrecision(ordinate1);
-            int fixedO2 = toFixedPrecision(ordinate2);
-            try {
-                writeUnsignedVarInt(fixedO1, out);
-                writeUnsignedVarInt(fixedO2, out);
-            } catch (IOException e) {
-                throw Throwables.propagate(e);
-            }
+        public EncodingSequenceFilter(DataOutput out, boolean writeLength) {
+            this.out = out;
+            this.writeLength = writeLength;
         }
 
         @Override
@@ -104,6 +105,44 @@ public class GeometrySerializer implements ValueSerializer {
         @Override
         public boolean isDone() {
             return false;
+        }
+
+        @Override
+        public void filter(CoordinateSequence seq, int index) {
+            double ordinate1 = seq.getOrdinate(index, 0);
+            double ordinate2 = seq.getOrdinate(index, 1);
+            int fixedO1 = toFixedPrecision(ordinate1);
+            int fixedO2 = toFixedPrecision(ordinate2);
+            try {
+                if (writeLength) {
+                    writeUnsignedVarInt(seq.size(), out);
+                    writeLength = false;
+                }
+                writeSignedVarInt(fixedO1, out);
+                writeSignedVarInt(fixedO2, out);
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+
+        public static CoordinateSequence read(DataInput in) throws IOException {
+            final int len = readUnsignedVarInt(in);
+
+            CoordinateSequence cs = GEOMFAC.getCoordinateSequenceFactory().create(len, 2);
+            for (int i = 0; i < len; i++) {
+                cs.setOrdinate(i, 0, toDoublePrecision(readSignedVarInt(in)));
+                cs.setOrdinate(i, 1, toDoublePrecision(readSignedVarInt(in)));
+            }
+            return cs;
+        }
+
+        public static CoordinateSequence readCoordinate(DataInput in) throws IOException {
+            CoordinateSequence cs = GEOMFAC.getCoordinateSequenceFactory().create(1, 2);
+
+            cs.setOrdinate(0, 0, toDoublePrecision(readSignedVarInt(in)));
+            cs.setOrdinate(0, 1, toDoublePrecision(readSignedVarInt(in)));
+
+            return cs;
         }
     }
 

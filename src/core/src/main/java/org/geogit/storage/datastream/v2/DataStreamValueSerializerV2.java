@@ -317,26 +317,26 @@ class DataStreamValueSerializerV2 {
                     data.writeUTF(s);
             }
         });
-        ValueSerializer geometry = new ValueSerializer() {
-            @Override
-            public Object read(DataInput in) throws IOException {
-                byte[] bytes = (byte[]) byteArray.read(in);
-                WKBReader wkbReader = new WKBReader();
-                try {
-                    return wkbReader.read(bytes);
-                } catch (ParseException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-
-            @Override
-            public void write(Object field, DataOutput data) throws IOException {
-                WKBWriter wkbWriter = new WKBWriter();
-                byte[] bytes = wkbWriter.write((Geometry) field);
-                byteArray.write(bytes, data);
-            }
-        };
-//        ValueSerializer geometry = new GeometrySerializer();
+//        ValueSerializer geometry = new ValueSerializer() {
+//            @Override
+//            public Object read(DataInput in) throws IOException {
+//                byte[] bytes = (byte[]) byteArray.read(in);
+//                WKBReader wkbReader = new WKBReader();
+//                try {
+//                    return wkbReader.read(bytes);
+//                } catch (ParseException e) {
+//                    throw new RuntimeException(e);
+//                }
+//            }
+//
+//            @Override
+//            public void write(Object field, DataOutput data) throws IOException {
+//                WKBWriter wkbWriter = new WKBWriter();
+//                byte[] bytes = wkbWriter.write((Geometry) field);
+//                byteArray.write(bytes, data);
+//            }
+//        };
+        ValueSerializer geometry = new GeometrySerializer();
         serializers.put(FieldType.GEOMETRY, geometry);
         serializers.put(FieldType.POINT, geometry);
         serializers.put(FieldType.LINESTRING, geometry);

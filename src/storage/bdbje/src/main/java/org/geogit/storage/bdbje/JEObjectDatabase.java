@@ -37,7 +37,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 
 import org.geogit.api.ObjectId;
+import org.geogit.api.RevFeature;
 import org.geogit.api.RevObject;
+import org.geogit.api.RevTree;
 import org.geogit.repository.Hints;
 import org.geogit.repository.RepositoryConnectionException;
 import org.geogit.storage.AbstractObjectDatabase;
@@ -92,7 +94,7 @@ public class JEObjectDatabase extends AbstractObjectDatabase implements ObjectDa
 
     private ExecutorService writerService;
 
-    OutputStream fout;
+    OutputStream objstream, idstream, treesstream, featuresstream;
 
     /**
      * The default number of objects bulk operations are partitioned into
@@ -156,7 +158,10 @@ public class JEObjectDatabase extends AbstractObjectDatabase implements ObjectDa
             return;
         }
         try {
-            fout.close();
+            objstream.close();
+            idstream.close();
+            treesstream.close();
+            featuresstream.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -222,9 +227,13 @@ public class JEObjectDatabase extends AbstractObjectDatabase implements ObjectDa
         LOGGER.debug("Object database opened at {}. Transactional: {}", env.getHome(), objectDb
                 .getConfig().getTransactional());
 
-        final File file = new File(this.objectDb.getEnvironment().getHome().getName() + ".objects");
         try {
-            fout = new BufferedOutputStream(new FileOutputStream(file));
+            String name = this.objectDb.getEnvironment().getHome().getName();
+            objstream = new BufferedOutputStream(new FileOutputStream(new File(name + ".objects")));
+            idstream = new BufferedOutputStream(new FileOutputStream(new File(name + ".ids")));
+            treesstream = new BufferedOutputStream(new FileOutputStream(new File(name + ".trees")));
+            featuresstream = new BufferedOutputStream(new FileOutputStream(new File(name
+                    + ".features")));
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
@@ -488,6 +497,21 @@ public class JEObjectDatabase extends AbstractObjectDatabase implements ObjectDa
             writeObject(o, out);
             int size = out.size() - offset;
             offsets.put(o.getId(), new int[] { offset, size });
+
+            try {
+                synchronized (objstream) {
+                    idstream.write(o.getId().getRawValue());
+                    objstream.write(out.bytes(), offset, size);
+                    if(o instanceof RevTree){
+                        treesstream.write(out.bytes(), offset, size);
+                    }else if(o instanceof RevFeature){
+                        featuresstream.write(out.bytes(), offset, size);
+                    }
+                }
+            } catch (Exception e2) {
+                e2.printStackTrace();
+            }
+
             return true;
         }
 
@@ -532,14 +556,6 @@ public class JEObjectDatabase extends AbstractObjectDatabase implements ObjectDa
                     objectId.getRawValue(key.getData());
                     DatabaseEntry data = new DatabaseEntry(rawData, offset, size);
 
-                    try {
-                        synchronized (fout) {
-                            //fout.write(key.getData());
-                            fout.write(data.getData(), offset, size);
-                        }
-                    } catch (Exception e2) {
-                        e2.printStackTrace();
-                    }
                     OperationStatus status = objectDb.putNoOverwrite(transaction, key, data);
                     if (OperationStatus.SUCCESS.equals(status)) {
                         listener.inserted(objectId, size);
