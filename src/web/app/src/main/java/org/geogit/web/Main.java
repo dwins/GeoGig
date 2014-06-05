@@ -138,7 +138,7 @@ public class Main extends Application {
             public Context build(Hints hints) {
                 return Guice.createInjector(
                         Modules.override(new GeogitModule()).with(new JEStorageModule(),
-                                new BlueprintsGraphModule(), new HintsModule(hints))).getInstance(
+                                new HintsModule(hints))).getInstance(
                         Context.class);
             }
         };

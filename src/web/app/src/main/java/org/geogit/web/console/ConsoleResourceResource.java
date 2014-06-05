@@ -22,6 +22,7 @@ import jline.console.ConsoleReader;
 
 import org.geogit.api.GeoGIT;
 import org.geogit.api.Platform;
+import org.geogit.cli.ArgumentTokenizer;
 import org.geogit.cli.GeogitCLI;
 import org.geogit.rest.repository.RESTUtils;
 import org.restlet.data.MediaType;
@@ -89,18 +90,6 @@ public class ConsoleResourceResource extends Resource {
         final String queryId = json.get("id").getAsString();
         JsonArray paramsArray = json.get("params").getAsJsonArray();
 
-        List<String> cmdAndArgs = new ArrayList<String>(1 + paramsArray.size());
-        cmdAndArgs.add(command);
-        for (Iterator<JsonElement> i = paramsArray.iterator(); i.hasNext();) {
-            JsonElement argElem = i.next();
-            if (argElem.isJsonNull()
-                    || ((argElem instanceof JsonObject) && ((JsonObject) argElem).entrySet()
-                            .isEmpty())) {
-                continue;
-            }
-            cmdAndArgs.add(argElem.getAsString());
-        }
-
         InputStream in = new ByteArrayInputStream(new byte[0]);
         OutputStream out = new ByteArrayOutputStream();
         ConsoleReader consoleReader;
@@ -114,7 +103,7 @@ public class ConsoleResourceResource extends Resource {
         Platform platform = geogit.get().getPlatform();
         geogitCLI.setPlatform(platform);
 
-        String[] args = cmdAndArgs.toArray(new String[cmdAndArgs.size()]);
+        String[] args = ArgumentTokenizer.tokenize(command);
         final int exitCode = geogitCLI.execute(args);
         JsonObject response = new JsonObject();
         response.addProperty("id", queryId);
