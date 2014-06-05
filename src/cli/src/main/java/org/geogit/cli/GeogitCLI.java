@@ -28,11 +28,11 @@ import javax.annotation.Nullable;
 import jline.console.ConsoleReader;
 import jline.console.CursorBuffer;
 
+import org.geogit.api.Context;
 import org.geogit.api.DefaultPlatform;
 import org.geogit.api.DefaultProgressListener;
 import org.geogit.api.GeoGIT;
 import org.geogit.api.GlobalContextBuilder;
-import org.geogit.api.Context;
 import org.geogit.api.Platform;
 import org.geogit.api.ProgressListener;
 import org.geogit.api.hooks.CannotRunGeogitOperationException;
@@ -92,13 +92,19 @@ public class GeogitCLI {
 
     private File geogitDirLoggingConfiguration;
 
-    private com.google.inject.Injector commandsInjector;
+    private static final com.google.inject.Injector commandsInjector;
+    static {
+        Iterable<CLIModule> plugins = ServiceLoader.load(CLIModule.class);
+        commandsInjector = Guice.createInjector(plugins);
+    }
 
     private Context geogitInjector;
 
     private Platform platform;
 
     private GeoGIT geogit;
+
+    private final GeoGIT providedGeogit;
 
     private final ConsoleReader consoleReader;
 
@@ -118,11 +124,16 @@ public class GeogitCLI {
      * @param consoleReader
      */
     public GeogitCLI(final ConsoleReader consoleReader) {
+        this(null, consoleReader);
+    }
+
+    /**
+     * Constructor to use the provided {@code GeoGIT} instance and never try to close it.
+     */
+    public GeogitCLI(final GeoGIT geogit, final ConsoleReader consoleReader) {
         this.consoleReader = consoleReader;
         this.platform = new DefaultPlatform();
-
-        Iterable<CLIModule> plugins = ServiceLoader.load(CLIModule.class);
-        commandsInjector = Guice.createInjector(plugins);
+        this.providedGeogit = geogit;
     }
 
     /**
@@ -161,6 +172,9 @@ public class GeogitCLI {
      */
     @Nullable
     public synchronized GeoGIT getGeogit() {
+        if (providedGeogit != null) {
+            return providedGeogit;
+        }
         if (geogit == null) {
             GeoGIT geogit = loadRepository();
             setGeogit(geogit);
@@ -286,6 +300,9 @@ public class GeogitCLI {
      * Closes the GeoGIT facade if it exists.
      */
     public synchronized void close() {
+        if (providedGeogit != null) {
+            return;
+        }
         if (geogit != null) {
             geogit.close();
             geogit = null;
@@ -546,7 +563,8 @@ public class GeogitCLI {
                     }
                 }
                 consoleReader.flush();
-                throw new CommandFailedException();
+                throw new CommandFailedException(String.format("'%s' is not a command.",
+                        commandName));
             }
 
             Object object = commandParser.getObjects().get(0);
@@ -657,7 +675,7 @@ public class GeogitCLI {
         final String aliasedCommand = args[0];
         String configParam = "alias." + aliasedCommand;
         boolean closeGeogit = false;
-        GeoGIT geogit = this.geogit;
+        GeoGIT geogit = this.providedGeogit == null ? this.geogit : this.providedGeogit;
         if (geogit == null) { // in case the repo is not initialized yet
             closeGeogit = true;
             geogit = newGeoGIT(Hints.readOnly());
