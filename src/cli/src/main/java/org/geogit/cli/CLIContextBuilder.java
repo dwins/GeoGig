@@ -18,8 +18,8 @@ import org.geogit.storage.ObjectDatabase;
 import org.geogit.storage.RefDatabase;
 import org.geogit.storage.StagingDatabase;
 import org.geogit.storage.bdbje.JEGraphDatabase;
-import org.geogit.storage.bdbje.JEObjectDatabase;
-import org.geogit.storage.bdbje.JEStagingDatabase;
+import org.geogit.storage.bdbje.JEObjectDatabase_v0_1;
+import org.geogit.storage.bdbje.JEStagingDatabase_v0_1;
 import org.geogit.storage.blueprints.TinkerGraphDatabase;
 import org.geogit.storage.fs.FileRefDatabase;
 import org.geogit.storage.mongo.MongoGraphDatabase;
@@ -73,7 +73,7 @@ public class CLIContextBuilder extends ContextBuilder {
                     binder(), VersionedFormat.class, ObjectDatabase.class);
             objectPlugins //
                     .addBinding(DEFAULT_OBJECTS)//
-                    .to(JEObjectDatabase.class)//
+                    .to(JEObjectDatabase_v0_1.class)//
                     .in(Scopes.SINGLETON);//
             objectPlugins //
                     .addBinding(new VersionedFormat("mongodb", "0.1"))//
@@ -92,7 +92,7 @@ public class CLIContextBuilder extends ContextBuilder {
                     .in(Scopes.SINGLETON);
             stagingPlugins //
                     .addBinding(DEFAULT_STAGING)//
-                    .to(JEStagingDatabase.class)//
+                    .to(JEStagingDatabase_v0_1.class)//
                     .in(Scopes.SINGLETON);
             stagingPlugins //
                     .addBinding(

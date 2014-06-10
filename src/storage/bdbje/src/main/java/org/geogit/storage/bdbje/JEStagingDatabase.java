@@ -59,7 +59,7 @@ import com.google.inject.Inject;
  * list of staged objects.
  * 
  */
-public class JEStagingDatabase extends AbstractStagingDatabase {
+public abstract class JEStagingDatabase extends AbstractStagingDatabase {
 
     /**
      * Name of the BDB JE environment inside the .geogit folder used for the staging database
@@ -72,35 +72,15 @@ public class JEStagingDatabase extends AbstractStagingDatabase {
 
     private File repositoryDirectory;
 
-    /**
-     * @param referenceDatabase the repository reference database, used to get the head re
-     * @param repoDb
-     * @param stagingDb
-     */
-    @Inject
-    public JEStagingDatabase(final ObjectDatabase repositoryDb,
-            final EnvironmentBuilder envBuilder, final Platform platform,
-            final ConfigDatabase configDB, final Hints hints) {
-
-        super(Suppliers.ofInstance(repositoryDb), stagingDbSupplier(envBuilder, configDB, hints));
+    public JEStagingDatabase(
+            final ObjectDatabase repositoryDb,
+            final Supplier<JEObjectDatabase> stagingDbSupplier,
+            final Platform platform,
+            final ConfigDatabase configDB) {
+        super(Suppliers.ofInstance(repositoryDb), stagingDbSupplier);
 
         this.platform = platform;
         this.configDB = configDB;
-    }
-
-    private static Supplier<JEObjectDatabase> stagingDbSupplier(
-            final EnvironmentBuilder envProvider, final ConfigDatabase configDb, final Hints hints) {
-
-        return Suppliers.memoize(new Supplier<JEObjectDatabase>() {
-
-            @Override
-            public JEObjectDatabase get() {
-                boolean readOnly = hints.getBoolean(Hints.STAGING_READ_ONLY);
-                JEObjectDatabase db = new JEObjectDatabase(configDb, envProvider, readOnly,
-                        JEStagingDatabase.ENVIRONMENT_NAME);
-                return db;
-            }
-        });
     }
 
     @Override

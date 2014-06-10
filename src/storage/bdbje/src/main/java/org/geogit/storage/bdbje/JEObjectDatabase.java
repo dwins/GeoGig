@@ -40,7 +40,7 @@ import org.geogit.storage.BulkOpListener;
 import org.geogit.storage.ConfigDatabase;
 import org.geogit.storage.ObjectDatabase;
 import org.geogit.storage.ObjectReader;
-import org.geogit.storage.datastream.DataStreamSerializationFactory;
+import org.geogit.storage.ObjectSerializingFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +73,7 @@ import com.sleepycat.je.TransactionConfig;
 /**
  * 
  */
-public class JEObjectDatabase extends AbstractObjectDatabase implements ObjectDatabase {
+public abstract class JEObjectDatabase extends AbstractObjectDatabase implements ObjectDatabase {
 
     /** Name of the BDB JE Environment inside the .geogit folder used for the objects database */
     static final String ENVIRONMENT_NAME = "objects";
@@ -115,16 +115,13 @@ public class JEObjectDatabase extends AbstractObjectDatabase implements ObjectDa
 
     private final String envName;
 
-    @Inject
-    public JEObjectDatabase(final ConfigDatabase configDB, final EnvironmentBuilder envProvider,
-            final Hints hints) {
-        this(configDB, envProvider, hints.getBoolean(Hints.OBJECTS_READ_ONLY),
-                JEObjectDatabase.ENVIRONMENT_NAME);
-    }
-
-    public JEObjectDatabase(final ConfigDatabase configDB, final EnvironmentBuilder envProvider,
-            final boolean readOnly, final String envName) {
-        super(DataStreamSerializationFactory.INSTANCE);
+    public JEObjectDatabase(
+            final ObjectSerializingFactory serialization,
+            final ConfigDatabase configDB,
+            final EnvironmentBuilder envProvider,
+            final boolean readOnly,
+            final String envName) {
+        super(serialization);
         this.configDB = configDB;
         this.envProvider = envProvider;
         this.readOnly = readOnly;
