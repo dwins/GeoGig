@@ -18,7 +18,7 @@ import org.geogit.storage.ObjectReader;
 
 import com.google.common.base.Throwables;
 
-public class CommitReader implements ObjectReader<RevCommit> {
+class CommitReader implements ObjectReader<RevCommit> {
     @Override
     public RevCommit read(ObjectId id, InputStream rawData) throws IllegalArgumentException {
         DataInput in = new DataInputStream(rawData);

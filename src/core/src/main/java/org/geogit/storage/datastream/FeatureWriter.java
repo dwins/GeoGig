@@ -17,7 +17,7 @@ import org.geogit.storage.ObjectWriter;
 
 import com.google.common.base.Optional;
 
-public class FeatureWriter implements ObjectWriter<RevFeature> {
+class FeatureWriter implements ObjectWriter<RevFeature> {
     @Override
     public void write(RevFeature feature, OutputStream out) throws IOException {
         DataOutput data = new DataOutputStream(out);

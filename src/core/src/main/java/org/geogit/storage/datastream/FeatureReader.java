@@ -18,7 +18,7 @@ import org.geogit.storage.ObjectReader;
 
 import com.google.common.base.Throwables;
 
-public class FeatureReader implements ObjectReader<RevFeature> {
+class FeatureReader implements ObjectReader<RevFeature> {
 
     @Override
     public RevFeature read(ObjectId id, InputStream rawData) throws IllegalArgumentException {

@@ -21,6 +21,7 @@ import org.geogit.storage.ObjectSerializingFactory;
 import org.geogit.storage.RefDatabase;
 import org.geogit.storage.StagingDatabase;
 import org.geogit.storage.datastream.DataStreamSerializationFactory;
+import org.geogit.storage.datastream.v2.DataStreamSerializationFactoryV2;
 import org.geogit.storage.fs.FileObjectDatabase;
 import org.geogit.storage.fs.FileRefDatabase;
 import org.geogit.storage.fs.IniFileConfigDatabase;
@@ -76,7 +77,7 @@ public class GeogitModule extends AbstractModule {
         bind(ObjectDatabase.class).to(FileObjectDatabase.class).in(Scopes.SINGLETON);
         bind(RefDatabase.class).to(FileRefDatabase.class).in(Scopes.SINGLETON);
 
-        bind(ObjectSerializingFactory.class).to(DataStreamSerializationFactory.class).in(
+        bind(ObjectSerializingFactory.class).to(DataStreamSerializationFactoryV2.class).in(
                 Scopes.SINGLETON);
 
         bind(DeduplicationService.class).to(HeapDeduplicationService.class).in(Scopes.SINGLETON);

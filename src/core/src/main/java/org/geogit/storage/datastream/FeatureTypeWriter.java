@@ -25,7 +25,7 @@ import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
-public class FeatureTypeWriter implements ObjectWriter<RevFeatureType> {
+class FeatureTypeWriter implements ObjectWriter<RevFeatureType> {
     @Override
     public void write(RevFeatureType object, OutputStream out) throws IOException {
         DataOutput data = new DataOutputStream(out);

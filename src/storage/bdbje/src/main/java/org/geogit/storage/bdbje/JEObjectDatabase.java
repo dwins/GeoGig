@@ -9,10 +9,15 @@ import static com.google.common.collect.Iterators.partition;
 import static com.sleepycat.je.OperationStatus.NOTFOUND;
 import static com.sleepycat.je.OperationStatus.SUCCESS;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,7 +37,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 
 import org.geogit.api.ObjectId;
+import org.geogit.api.RevFeature;
 import org.geogit.api.RevObject;
+import org.geogit.api.RevTree;
 import org.geogit.repository.Hints;
 import org.geogit.repository.RepositoryConnectionException;
 import org.geogit.storage.AbstractObjectDatabase;
@@ -86,6 +93,8 @@ public abstract class JEObjectDatabase extends AbstractObjectDatabase implements
     private ExecutorService dbSyncService;
 
     private ExecutorService writerService;
+
+    OutputStream objstream, idstream, treesstream, featuresstream;
 
     /**
      * The default number of objects bulk operations are partitioned into
@@ -145,6 +154,15 @@ public abstract class JEObjectDatabase extends AbstractObjectDatabase implements
             LOGGER.trace("Database already closed.");
             return;
         }
+        try {
+            objstream.close();
+            idstream.close();
+            treesstream.close();
+            featuresstream.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         final File envHome = env.getHome();
         try {
             LOGGER.debug("Closing object database at {}", envHome);
@@ -205,6 +223,18 @@ public abstract class JEObjectDatabase extends AbstractObjectDatabase implements
 
         LOGGER.debug("Object database opened at {}. Transactional: {}", env.getHome(), objectDb
                 .getConfig().getTransactional());
+
+        try {
+            String name = this.objectDb.getEnvironment().getHome().getName();
+            objstream = new BufferedOutputStream(new FileOutputStream(new File(name + ".objects")));
+            idstream = new BufferedOutputStream(new FileOutputStream(new File(name + ".ids")));
+            treesstream = new BufferedOutputStream(new FileOutputStream(new File(name + ".trees")));
+            featuresstream = new BufferedOutputStream(new FileOutputStream(new File(name
+                    + ".features")));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
     }
 
     protected Database createDatabase() {
@@ -464,6 +494,21 @@ public abstract class JEObjectDatabase extends AbstractObjectDatabase implements
             writeObject(o, out);
             int size = out.size() - offset;
             offsets.put(o.getId(), new int[] { offset, size });
+
+            try {
+                synchronized (objstream) {
+                    idstream.write(o.getId().getRawValue());
+                    objstream.write(out.bytes(), offset, size);
+                    if(o instanceof RevTree){
+                        treesstream.write(out.bytes(), offset, size);
+                    }else if(o instanceof RevFeature){
+                        featuresstream.write(out.bytes(), offset, size);
+                    }
+                }
+            } catch (Exception e2) {
+                e2.printStackTrace();
+            }
+
             return true;
         }
 

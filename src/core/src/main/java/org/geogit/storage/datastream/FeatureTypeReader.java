@@ -16,7 +16,7 @@ import org.geogit.api.ObjectId;
 import org.geogit.api.RevFeatureType;
 import org.geogit.storage.ObjectReader;
 
-public class FeatureTypeReader implements ObjectReader<RevFeatureType> {
+class FeatureTypeReader implements ObjectReader<RevFeatureType> {
     @Override
     public RevFeatureType read(ObjectId id, InputStream rawData) throws IllegalArgumentException {
         DataInput in = new DataInputStream(rawData);

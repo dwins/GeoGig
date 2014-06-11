@@ -14,7 +14,7 @@ import org.geogit.storage.ObjectReader;
 
 import com.google.common.base.Throwables;
 
-public class TagReader implements ObjectReader<RevTag> {
+class TagReader implements ObjectReader<RevTag> {
     public RevTag read(ObjectId id, InputStream in) {
         DataInput data = new DataInputStream(in);
         try {

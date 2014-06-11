@@ -18,7 +18,7 @@ import org.geogit.storage.ObjectReader;
 
 import com.google.common.base.Throwables;
 
-public class TreeReader implements ObjectReader<RevTree> {
+class TreeReader implements ObjectReader<RevTree> {
 
     @Override
     public RevTree read(ObjectId id, InputStream rawData) throws IllegalArgumentException {
